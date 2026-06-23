@@ -10,6 +10,11 @@ linters:
     - unconvert
     - unparam
   settings:
+    misspell:
+      ignore-rules:
+        - Correctivo
+        - Preventivo
+        - dependencias
     gosec:
       excludes:
         - G104

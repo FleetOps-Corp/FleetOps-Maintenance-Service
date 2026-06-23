@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 )
@@ -57,6 +58,11 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("DATABASE_MAX_CONNS: %w", err)
 	}
+
+	if maxConns < 0 || maxConns > math.MaxInt32 {
+		return nil, fmt.Errorf("invalid maxConns: %d (out of int32 range)", maxConns)
+	}
+
 	cfg.DatabaseMaxConns = int32(maxConns)
 
 	cfg.MaxWorkers, err = getEnvAsInt("MAX_WORKERS", 5)
