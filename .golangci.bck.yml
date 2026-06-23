@@ -1,0 +1,47 @@
+# =============================================================================
+# golangci-lint configuration
+# SAD Reference: ADR-13 — Code quality tools (gofumpt, golangci-lint, SonarCloud)
+# =============================================================================
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gofumpt
+    - gosec
+    - misspell
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
+
+linters-settings:
+  gofumpt:
+    extra-rules: true
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: unexported-return
+        severity: warning
+  gosec:
+    excludes:
+      - G104 # Unhandled errors (handled by errcheck)
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - unparam
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -28,6 +28,7 @@ jobs:
 
       - name: Formatting
         run: |
+          go install mvdan.cc/gofumpt@v0.10.0
           gofumpt -d .
           test -z "$(gofumpt -l .)" || (echo "Files need formatting" && exit 1)
 
