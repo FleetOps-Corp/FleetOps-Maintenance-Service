@@ -16,13 +16,13 @@ import (
 // propagación de fallos entre tareas concurrentes"
 // Pattern: Bulkhead (Resilience), Worker Pool (Concurrency)
 type WorkerPool struct {
-	repo            port.MaintenanceRepository
-	vehicleClient   port.VehicleClient
-	maxWorkers      int
-	pollInterval    time.Duration
-	logger          *slog.Logger
-	stopCh          chan struct{}
-	stopped         sync.Once
+	repo          port.MaintenanceRepository
+	vehicleClient port.VehicleClient
+	maxWorkers    int
+	pollInterval  time.Duration
+	logger        *slog.Logger
+	stopCh        chan struct{}
+	stopped       sync.Once
 }
 
 // NewWorkerPool constructs a WorkerPool with the given concurrency limit (Bulkhead).
@@ -51,7 +51,8 @@ func NewWorkerPool(
 //
 // SAD Reference: "Procesamiento concurrente mediante workers (goroutines)"
 func (wp *WorkerPool) Start(ctx context.Context) {
-	wp.logger.Info("worker pool started",
+	wp.logger.Info(
+		"worker pool started",
 		slog.Int("max_workers", wp.maxWorkers),
 		slog.Duration("poll_interval", wp.pollInterval),
 	)
@@ -87,7 +88,8 @@ func (wp *WorkerPool) Stop() {
 func (wp *WorkerPool) processQueue(ctx context.Context) {
 	queued, err := wp.repo.ListByStatus(ctx, "queued")
 	if err != nil {
-		wp.logger.ErrorContext(ctx, "worker pool failed to fetch queued items",
+		wp.logger.ErrorContext(
+			ctx, "worker pool failed to fetch queued items",
 			slog.String("error", err.Error()),
 		)
 		return
@@ -97,7 +99,8 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 		return
 	}
 
-	wp.logger.InfoContext(ctx, "worker pool processing queue",
+	wp.logger.InfoContext(
+		ctx, "worker pool processing queue",
 		slog.Int("queued_count", len(queued)),
 	)
 
@@ -117,7 +120,8 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 
 			// Transition: queued → in_progress
 			if err := m.MarkInProgress(); err != nil {
-				wp.logger.WarnContext(ctx, "failed to mark maintenance in_progress",
+				wp.logger.WarnContext(
+					ctx, "failed to mark maintenance in_progress",
 					slog.String("maintenance_id", m.ID.String()),
 					slog.String("error", err.Error()),
 				)
@@ -125,7 +129,8 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 			}
 
 			if err := wp.repo.UpdateStatus(ctx, m); err != nil {
-				wp.logger.ErrorContext(ctx, "failed to persist in_progress status",
+				wp.logger.ErrorContext(
+					ctx, "failed to persist in_progress status",
 					slog.String("maintenance_id", m.ID.String()),
 					slog.String("error", err.Error()),
 				)
@@ -133,14 +138,16 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 			}
 
 			// Simulate maintenance processing work
-			wp.logger.InfoContext(ctx, "processing maintenance",
+			wp.logger.InfoContext(
+				ctx, "processing maintenance",
 				slog.String("maintenance_id", m.ID.String()),
 				slog.String("type", string(m.Type)),
 			)
 
 			// Transition: in_progress → completed
 			if err := m.MarkCompleted(); err != nil {
-				wp.logger.ErrorContext(ctx, "failed to mark maintenance completed",
+				wp.logger.ErrorContext(
+					ctx, "failed to mark maintenance completed",
 					slog.String("maintenance_id", m.ID.String()),
 					slog.String("error", err.Error()),
 				)
@@ -148,7 +155,8 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 			}
 
 			if err := wp.repo.UpdateStatus(ctx, m); err != nil {
-				wp.logger.ErrorContext(ctx, "failed to persist completed status",
+				wp.logger.ErrorContext(
+					ctx, "failed to persist completed status",
 					slog.String("maintenance_id", m.ID.String()),
 					slog.String("error", err.Error()),
 				)
@@ -159,7 +167,8 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 			// SAD Reference: "PUT a /vehículos — actualiza estado y cantidad
 			// de días desde el último mantenimiento"
 			if err := wp.vehicleClient.UpdateVehicleMaintenanceStatus(ctx, m.VehicleID, 0); err != nil {
-				wp.logger.WarnContext(ctx, "failed to update vehicle maintenance status",
+				wp.logger.WarnContext(
+					ctx, "failed to update vehicle maintenance status",
 					slog.String("maintenance_id", m.ID.String()),
 					slog.String("vehicle_id", m.VehicleID.String()),
 					slog.String("error", err.Error()),
@@ -167,7 +176,8 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 				// Non-fatal: the maintenance itself completed successfully
 			}
 
-			wp.logger.InfoContext(ctx, "maintenance completed",
+			wp.logger.InfoContext(
+				ctx, "maintenance completed",
 				slog.String("maintenance_id", m.ID.String()),
 				slog.String("vehicle_id", m.VehicleID.String()),
 			)

@@ -49,7 +49,8 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 	// Step 5: Create the corrective maintenance domain entity
 	maintenance, err := domain.NewCorrectiveMaintenance(vehicleID, incidentID, severity)
 	if err != nil {
-		s.logger.WarnContext(ctx, "failed to create corrective maintenance",
+		s.logger.WarnContext(
+			ctx, "failed to create corrective maintenance",
 			slog.String("vehicle_id", vehicleID.String()),
 			slog.String("incident_id", incidentID.String()),
 			slog.String("error", err.Error()),
@@ -59,14 +60,16 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 
 	// Steps 6-7: Persist via Repository → PostgreSQL
 	if err := s.repo.Create(ctx, maintenance); err != nil {
-		s.logger.ErrorContext(ctx, "failed to persist corrective maintenance",
+		s.logger.ErrorContext(
+			ctx, "failed to persist corrective maintenance",
 			slog.String("maintenance_id", maintenance.ID.String()),
 			slog.String("error", err.Error()),
 		)
 		return nil, fmt.Errorf("persisting corrective maintenance: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "corrective maintenance created and queued",
+	s.logger.InfoContext(
+		ctx, "corrective maintenance created and queued",
 		slog.String("maintenance_id", maintenance.ID.String()),
 		slog.String("vehicle_id", vehicleID.String()),
 		slog.String("incident_id", incidentID.String()),

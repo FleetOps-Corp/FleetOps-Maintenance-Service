@@ -2,14 +2,14 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"io"
 	"testing"
-	"context"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"

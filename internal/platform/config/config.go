@@ -23,8 +23,8 @@ type Config struct {
 	DatabaseMaxConns int32
 
 	// Worker Pool (Bulkhead)
-	MaxWorkers              int
-	WorkerPollIntervalSecs  int
+	MaxWorkers             int
+	WorkerPollIntervalSecs int
 
 	// Preventive Maintenance
 	CronIntervalDays        int
@@ -32,8 +32,8 @@ type Config struct {
 	PreventiveDaysThreshold int
 
 	// External Services
-	VehiclesServiceURL     string
-	HTTPClientTimeoutSecs  int
+	VehiclesServiceURL    string
+	HTTPClientTimeoutSecs int
 
 	// Observability
 	MetricsEnabled bool

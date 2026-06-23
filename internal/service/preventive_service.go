@@ -18,14 +18,14 @@ import (
 // Preventivos"
 // Pattern: Service Layer (PoEAA), Scheduled Task (Cron Handler)
 type PreventiveMaintenanceService struct {
-	repo            port.MaintenanceRepository
-	vehicleClient   port.VehicleClient
-	kmThreshold     float64
-	daysThreshold   int
-	intervalDays    int
-	logger          *slog.Logger
-	stopCh          chan struct{}
-	stopped         sync.Once
+	repo          port.MaintenanceRepository
+	vehicleClient port.VehicleClient
+	kmThreshold   float64
+	daysThreshold int
+	intervalDays  int
+	logger        *slog.Logger
+	stopCh        chan struct{}
+	stopped       sync.Once
 }
 
 // NewPreventiveMaintenanceService constructs a PreventiveMaintenanceService
@@ -61,13 +61,15 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 	// Steps 2-3: Fetch vehicles from external service via ACL
 	vehicles, err := s.vehicleClient.GetAllVehicles(ctx)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to fetch vehicles for preventive scheduling",
+		s.logger.ErrorContext(
+			ctx, "failed to fetch vehicles for preventive scheduling",
 			slog.String("error", err.Error()),
 		)
 		return nil, fmt.Errorf("fetching vehicles: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "fetched vehicles for preventive evaluation",
+	s.logger.InfoContext(
+		ctx, "fetched vehicles for preventive evaluation",
 		slog.Int("total_vehicles", len(vehicles)),
 	)
 
@@ -81,7 +83,8 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 		// Step 5: Generate preventive maintenance record
 		m, err := domain.NewPreventiveMaintenance(v.ID)
 		if err != nil {
-			s.logger.WarnContext(ctx, "failed to create preventive maintenance",
+			s.logger.WarnContext(
+				ctx, "failed to create preventive maintenance",
 				slog.String("vehicle_id", v.ID.String()),
 				slog.String("error", err.Error()),
 			)
@@ -90,7 +93,8 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 
 		// Steps 6-7: Persist via Repository
 		if err := s.repo.Create(ctx, m); err != nil {
-			s.logger.ErrorContext(ctx, "failed to persist preventive maintenance",
+			s.logger.ErrorContext(
+				ctx, "failed to persist preventive maintenance",
 				slog.String("maintenance_id", m.ID.String()),
 				slog.String("error", err.Error()),
 			)
@@ -100,7 +104,8 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 		created = append(created, m)
 	}
 
-	s.logger.InfoContext(ctx, "preventive maintenance scheduling completed",
+	s.logger.InfoContext(
+		ctx, "preventive maintenance scheduling completed",
 		slog.Int("vehicles_evaluated", len(vehicles)),
 		slog.Int("maintenances_created", len(created)),
 	)
@@ -117,7 +122,8 @@ func (s *PreventiveMaintenanceService) Start(ctx context.Context) {
 	interval := time.Duration(s.intervalDays) * 24 * time.Hour
 	ticker := time.NewTicker(interval)
 
-	s.logger.Info("preventive maintenance scheduler started",
+	s.logger.Info(
+		"preventive maintenance scheduler started",
 		slog.Int("interval_days", s.intervalDays),
 	)
 
@@ -127,7 +133,8 @@ func (s *PreventiveMaintenanceService) Start(ctx context.Context) {
 			select {
 			case <-ticker.C:
 				if _, err := s.SchedulePreventive(ctx); err != nil {
-					s.logger.ErrorContext(ctx, "preventive scheduling cycle failed",
+					s.logger.ErrorContext(
+						ctx, "preventive scheduling cycle failed",
 						slog.String("error", err.Error()),
 					)
 				}
