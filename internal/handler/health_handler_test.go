@@ -39,7 +39,7 @@ func TestHealthCheck_ResponseStructure(t *testing.T) {
 	// We use a defer/recover since nil pool.Ping may panic
 	func() {
 		defer func() {
-			if r := recover(); r != nil {
+			if recover() != nil {
 				// Expected with nil pool — validates that a real pool is needed
 				t.Log("nil pool causes panic as expected — integration test needed")
 			}

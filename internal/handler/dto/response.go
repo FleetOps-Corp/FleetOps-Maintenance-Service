@@ -61,8 +61,8 @@ type ErrorResponse struct {
 //
 // SAD Reference: Process Network 3 — "listado de vehículos: en cola, en mantenimiento"
 type QueueSummaryResponse struct {
-	Queued       []*MaintenanceResponse `json:"en_cola"`
-	InProgress   []*MaintenanceResponse `json:"en_mantenimiento"`
-	TotalQueued  int                    `json:"total_en_cola"`
-	TotalActive  int                    `json:"total_en_mantenimiento"`
+	Queued      []*MaintenanceResponse `json:"en_cola"`
+	InProgress  []*MaintenanceResponse `json:"en_mantenimiento"`
+	TotalQueued int                    `json:"total_en_cola"`
+	TotalActive int                    `json:"total_en_mantenimiento"`
 }

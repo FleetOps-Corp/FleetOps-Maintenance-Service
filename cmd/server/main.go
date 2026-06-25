@@ -38,7 +38,8 @@ func main() {
 	log := logger.New(cfg.LogLevel)
 	slog.SetDefault(log)
 
-	log.Info("starting FleetOps Maintenance Microservice",
+	log.Info(
+		"starting FleetOps Maintenance Microservice",
 		slog.String("port", cfg.ServerPort),
 		slog.String("log_level", cfg.LogLevel),
 	)

@@ -3,8 +3,8 @@ package service_test
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/google/uuid"

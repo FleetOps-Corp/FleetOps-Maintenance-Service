@@ -37,7 +37,8 @@ func (r *PostgresMaintenanceRepository) Create(ctx context.Context, m *domain.Ma
 		INSERT INTO maintenances (id, vehicle_id, incident_id, type, severity, status, created_at, updated_at, completed_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.pool.Exec(
+		ctx, query,
 		m.ID, m.VehicleID, m.IncidentID, m.Type, m.Severity,
 		m.Status, m.CreatedAt, m.UpdatedAt, m.CompletedAt,
 	)
