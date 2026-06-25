@@ -30,8 +30,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM alpine:3.20.1
 
 # Install CA certificates for HTTPS calls to external services
-RUN apk add --no-cache ca-certificates tzdata \
-    # Create non-root user (Rule R5)
+# Create non-root user (Rule R5)
+RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
