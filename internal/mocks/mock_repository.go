@@ -16,8 +16,7 @@ type MockMaintenanceRepository struct {
 }
 
 func (m *MockMaintenanceRepository) Create(ctx context.Context, maintenance *domain.Maintenance) error {
-	args := m.Called(ctx, maintenance)
-	return args.Error(0)
+	return m.Called(ctx, maintenance).Error(0)
 }
 
 func (m *MockMaintenanceRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Maintenance, error) {
@@ -45,6 +44,5 @@ func (m *MockMaintenanceRepository) ListByStatus(ctx context.Context, status dom
 }
 
 func (m *MockMaintenanceRepository) UpdateStatus(ctx context.Context, maintenance *domain.Maintenance) error {
-	args := m.Called(ctx, maintenance)
-	return args.Error(0)
+	return m.Called(ctx, maintenance).Error(0)
 }

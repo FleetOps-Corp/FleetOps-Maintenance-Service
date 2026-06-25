@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 )
@@ -23,8 +24,8 @@ type Config struct {
 	DatabaseMaxConns int32
 
 	// Worker Pool (Bulkhead)
-	MaxWorkers              int
-	WorkerPollIntervalSecs  int
+	MaxWorkers             int
+	WorkerPollIntervalSecs int
 
 	// Preventive Maintenance
 	CronIntervalDays        int
@@ -32,8 +33,8 @@ type Config struct {
 	PreventiveDaysThreshold int
 
 	// External Services
-	VehiclesServiceURL     string
-	HTTPClientTimeoutSecs  int
+	VehiclesServiceURL    string
+	HTTPClientTimeoutSecs int
 
 	// Observability
 	MetricsEnabled bool
@@ -57,6 +58,11 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("DATABASE_MAX_CONNS: %w", err)
 	}
+
+	if maxConns < 0 || maxConns > math.MaxInt32 {
+		return nil, fmt.Errorf("invalid maxConns: %d (out of int32 range)", maxConns)
+	}
+
 	cfg.DatabaseMaxConns = int32(maxConns)
 
 	cfg.MaxWorkers, err = getEnvAsInt("MAX_WORKERS", 5)

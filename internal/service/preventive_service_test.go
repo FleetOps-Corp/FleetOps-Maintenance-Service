@@ -28,9 +28,9 @@ func TestSchedulePreventive_Success_FiltersAndCreates(t *testing.T) {
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: uuid.New(), KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},  // qualifies (km)
-		{ID: uuid.New(), KilometersRecorded: 5000, DaysSinceLastMaintenance: 100, Available: true},  // qualifies (days)
-		{ID: uuid.New(), KilometersRecorded: 3000, DaysSinceLastMaintenance: 20, Available: true},   // does NOT qualify
+		{ID: uuid.New(), KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},   // qualifies (km)
+		{ID: uuid.New(), KilometersRecorded: 5000, DaysSinceLastMaintenance: 100, Available: true},   // qualifies (days)
+		{ID: uuid.New(), KilometersRecorded: 3000, DaysSinceLastMaintenance: 20, Available: true},    // does NOT qualify
 		{ID: uuid.New(), KilometersRecorded: 20000, DaysSinceLastMaintenance: 120, Available: false}, // NOT available
 	}
 
