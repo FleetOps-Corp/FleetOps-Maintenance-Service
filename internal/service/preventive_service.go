@@ -129,7 +129,7 @@ func (s *PreventiveMaintenanceService) Start(ctx context.Context) {
 
 	go func() {
 		defer ticker.Stop()
-		
+
 		// Run first cycle immediately
 		if _, err := s.SchedulePreventive(ctx); err != nil {
 			s.logger.ErrorContext(
