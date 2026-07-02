@@ -85,7 +85,7 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 		if err != nil {
 			s.logger.WarnContext(
 				ctx, "failed to create preventive maintenance",
-				slog.String("vehicle_id", v.ID.String()),
+				slog.String("vehicle_id", v.ID),
 				slog.String("error", err.Error()),
 			)
 			continue

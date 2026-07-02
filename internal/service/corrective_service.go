@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/google/uuid"
 
 	"github.com/fleetops/maintenance/internal/domain"
 	"github.com/fleetops/maintenance/internal/port"
@@ -43,7 +42,7 @@ func NewCorrectiveMaintenanceService(
 // Flow: Validate → Create domain entity → Persist via Repository → Return
 func (s *CorrectiveMaintenanceService) CreateCorrective(
 	ctx context.Context,
-	vehicleID, incidentID uuid.UUID,
+	vehicleID, incidentID string,
 	severity uint8,
 ) (*domain.Maintenance, error) {
 	// Step 5: Create the corrective maintenance domain entity
@@ -51,8 +50,8 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 	if err != nil {
 		s.logger.WarnContext(
 			ctx, "failed to create corrective maintenance",
-			slog.String("vehicle_id", vehicleID.String()),
-			slog.String("incident_id", incidentID.String()),
+			slog.String("vehicle_id", vehicleID),
+			slog.String("incident_id", incidentID),
 			slog.String("error", err.Error()),
 		)
 		return nil, fmt.Errorf("creating corrective maintenance: %w", err)
@@ -71,8 +70,8 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 	s.logger.InfoContext(
 		ctx, "corrective maintenance created and queued",
 		slog.String("maintenance_id", maintenance.ID.String()),
-		slog.String("vehicle_id", vehicleID.String()),
-		slog.String("incident_id", incidentID.String()),
+		slog.String("vehicle_id", vehicleID),
+		slog.String("incident_id", incidentID),
 		slog.Uint64("severity", uint64(severity)),
 	)
 

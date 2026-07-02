@@ -48,8 +48,8 @@ func TestCreateCorrective_Handler_Success(t *testing.T) {
 	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).Return(nil)
 
 	body := dto.CreateMaintenanceRequest{
-		VehicleID:  uuid.New(),
-		IncidentID: uuid.New(),
+		VehicleID:  "ABC-123",
+		IncidentID: "INC-123",
 		Severity:   5,
 	}
 	jsonBody, _ := json.Marshal(body)
@@ -93,8 +93,8 @@ func TestCreateCorrective_Handler_ValidationError(t *testing.T) {
 	h, _ := setupHandler()
 
 	body := dto.CreateMaintenanceRequest{
-		VehicleID:  uuid.Nil, // invalid
-		IncidentID: uuid.New(),
+		VehicleID:  "", // invalid
+		IncidentID: "INC-123",
 		Severity:   5,
 	}
 	jsonBody, _ := json.Marshal(body)
@@ -115,8 +115,8 @@ func TestCreateCorrective_Handler_SeverityValidation(t *testing.T) {
 	h, _ := setupHandler()
 
 	body := dto.CreateMaintenanceRequest{
-		VehicleID:  uuid.New(),
-		IncidentID: uuid.New(),
+		VehicleID:  "ABC-123",
+		IncidentID: "INC-123",
 		Severity:   0, // invalid
 	}
 	jsonBody, _ := json.Marshal(body)
@@ -141,7 +141,7 @@ func TestListAll_Handler_Success(t *testing.T) {
 	h, repo := setupHandler()
 
 	items := []*domain.Maintenance{
-		{ID: uuid.New(), VehicleID: uuid.New(), Type: domain.MaintenanceTypeCorrective, Status: domain.MaintenanceStatusQueued},
+		{ID: uuid.New(), VehicleID: "ABC-123", Type: domain.MaintenanceTypeCorrective, Status: domain.MaintenanceStatusQueued},
 	}
 	repo.On("List", mock.Anything).Return(items, nil)
 
@@ -185,7 +185,7 @@ func TestGetByID_Handler_Success(t *testing.T) {
 	h, repo := setupHandler()
 
 	id := uuid.New()
-	expected := &domain.Maintenance{ID: id, VehicleID: uuid.New(), Status: domain.MaintenanceStatusQueued}
+	expected := &domain.Maintenance{ID: id, VehicleID: "ABC-123", Status: domain.MaintenanceStatusQueued}
 	repo.On("GetByID", mock.Anything, id).Return(expected, nil)
 
 	// Use chi context to inject URL param

@@ -17,7 +17,10 @@ import (
 	"syscall"
 	"time"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/fleetops/maintenance/internal/adapter/client"
+	"github.com/fleetops/maintenance/internal/adapter/messaging"
 	"github.com/fleetops/maintenance/internal/adapter/repository"
 	"github.com/fleetops/maintenance/internal/handler"
 	"github.com/fleetops/maintenance/internal/platform/config"
@@ -94,6 +97,23 @@ func main() {
 	// Start worker pool (Bulkhead pattern)
 	workerPool.Start(ctx)
 	defer workerPool.Stop()
+
+	// =========================================================================
+	// Messaging: SQS Consumer
+	// =========================================================================
+	if cfg.SQSQueueURL != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegion))
+		if err != nil {
+			log.Error("failed to load AWS config for SQS", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		sqsClient := sqs.NewFromConfig(awsCfg)
+		sqsConsumer := messaging.NewSQSConsumer(sqsClient, cfg.SQSQueueURL, correctiveSvc, log)
+		sqsConsumer.Start(ctx)
+		defer sqsConsumer.Stop()
+	} else {
+		log.Warn("SQS_QUEUE_URL is not set, SQS consumer will NOT start")
+	}
 
 	// =========================================================================
 	// HTTP Server with graceful shutdown

@@ -12,11 +12,11 @@ import "errors"
 // These errors represent business rule violations and are used
 // across the domain and service layers.
 var (
-	// ErrInvalidVehicleID indicates a nil or empty vehicle UUID was provided.
-	ErrInvalidVehicleID = errors.New("invalid vehicle ID: must not be nil")
+	// ErrInvalidVehicleID indicates a nil or empty vehicle ID was provided.
+	ErrInvalidVehicleID = errors.New("invalid vehicle ID: must not be empty")
 
-	// ErrInvalidIncidentID indicates a nil or empty incident UUID was provided.
-	ErrInvalidIncidentID = errors.New("invalid incident ID: must not be nil")
+	// ErrInvalidIncidentID indicates a nil or empty incident ID was provided.
+	ErrInvalidIncidentID = errors.New("invalid incident ID: must not be empty")
 
 	// ErrInvalidSeverity indicates the severity value is outside the valid range [1, 10].
 	ErrInvalidSeverity = errors.New("invalid severity: must be between 1 and 10")

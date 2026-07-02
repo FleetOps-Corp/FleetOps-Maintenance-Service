@@ -64,8 +64,8 @@ func ValidMaintenanceStatus(s MaintenanceStatus) bool {
 //	                    → failed
 type Maintenance struct {
 	ID          uuid.UUID
-	VehicleID   uuid.UUID
-	IncidentID  *uuid.UUID // nil for preventive maintenance
+	VehicleID   string
+	IncidentID  *string // nil for preventive maintenance
 	Type        MaintenanceType
 	Severity    uint8 // 1-10 for corrective, 0 for preventive
 	Status      MaintenanceStatus
@@ -79,11 +79,11 @@ type Maintenance struct {
 //
 // SAD Reference: Process Network 1 — Step 5
 // Parameters: id_incidente (UUID), id_vehiculo (UUID), gravedad (uint8)
-func NewCorrectiveMaintenance(vehicleID, incidentID uuid.UUID, severity uint8) (*Maintenance, error) {
-	if vehicleID == uuid.Nil {
+func NewCorrectiveMaintenance(vehicleID, incidentID string, severity uint8) (*Maintenance, error) {
+	if vehicleID == "" {
 		return nil, ErrInvalidVehicleID
 	}
-	if incidentID == uuid.Nil {
+	if incidentID == "" {
 		return nil, ErrInvalidIncidentID
 	}
 	if severity < 1 || severity > 10 {
@@ -107,8 +107,8 @@ func NewCorrectiveMaintenance(vehicleID, incidentID uuid.UUID, severity uint8) (
 // Preventive maintenances have no incident association and zero severity.
 //
 // SAD Reference: Process Network 2 — Step 5
-func NewPreventiveMaintenance(vehicleID uuid.UUID) (*Maintenance, error) {
-	if vehicleID == uuid.Nil {
+func NewPreventiveMaintenance(vehicleID string) (*Maintenance, error) {
+	if vehicleID == "" {
 		return nil, ErrInvalidVehicleID
 	}
 

@@ -2,9 +2,7 @@ package dto
 
 import (
 	"time"
-
 	"github.com/google/uuid"
-
 	"github.com/fleetops/maintenance/internal/domain"
 )
 
@@ -13,8 +11,8 @@ import (
 // Pattern: Data Transfer Object (DTO)
 type MaintenanceResponse struct {
 	ID          uuid.UUID  `json:"id"`
-	VehicleID   uuid.UUID  `json:"id_vehiculo"`
-	IncidentID  *uuid.UUID `json:"id_incidente,omitempty"`
+	VehicleID   string     `json:"id_vehiculo"`
+	IncidentID  *string    `json:"id_incidente,omitempty"`
 	Type        string     `json:"tipo"`
 	Severity    uint8      `json:"gravedad"`
 	Status      string     `json:"estado"`
@@ -65,4 +63,12 @@ type QueueSummaryResponse struct {
 	InProgress  []*MaintenanceResponse `json:"en_mantenimiento"`
 	TotalQueued int                    `json:"total_en_cola"`
 	TotalActive int                    `json:"total_en_mantenimiento"`
+}
+
+// ReportResponse represents a simplified view of a maintenance record for reports.
+type ReportResponse struct {
+	VehicleID            string `json:"id_vehiculo"`
+	MaintenanceDate      string `json:"fecha_de_mantenimiento"`
+	MaintenanceStatus    bool   `json:"estado_mantenimiento"`
+	Severity             string `json:"gravedad"`
 }

@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/fleetops/maintenance/internal/domain"
 	"github.com/fleetops/maintenance/internal/port"
 )
@@ -79,12 +77,11 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 	// ACL Translation: convert external models to domain models
 	vehicles := make([]*domain.Vehicle, 0, len(external))
 	for _, ev := range external {
-		id, err := uuid.Parse(ev.ID)
-		if err != nil {
+		if ev.ID == "" {
 			continue // skip vehicles with invalid IDs
 		}
 		vehicles = append(vehicles, &domain.Vehicle{
-			ID:                       id,
+			ID:                       ev.ID,
 			LicensePlate:             ev.LicensePlate,
 			KilometersRecorded:       ev.KilometersRecorded,
 			DaysSinceLastMaintenance: ev.DaysSinceLastMaintenance,
@@ -95,27 +92,26 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 	return vehicles, nil
 }
 
-// vehicleUpdatePayload represents the JSON body sent to the Vehicles
-// microservice when updating maintenance status.
 type vehicleUpdatePayload struct {
-	DaysSinceLastMaintenance int `json:"days_since_last_maintenance"`
+	NuevoEstado    string `json:"nuevoEstado"`
+	MotivoCambio   string `json:"motivoCambio"`
+	ServicioOrigen string `json:"servicioOrigen"`
 }
 
-// UpdateVehicleMaintenanceStatus sends a PUT request to the Vehicles
-// microservice to reset the maintenance days counter after a maintenance
-// is completed.
-//
-// SAD Reference: "PUT a /vehículos — actualiza estado y cantidad de días
-// desde el último mantenimiento del vehículo"
-func (c *HTTPVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID uuid.UUID, daysReset int) error {
-	payload := vehicleUpdatePayload{DaysSinceLastMaintenance: daysReset}
+// SAD Reference: "PATCH a /vehículos/{id}/estado — actualiza estado a DISPONIBLE"
+func (c *HTTPVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID string) error {
+	payload := vehicleUpdatePayload{
+		NuevoEstado:    "DISPONIBLE",
+		MotivoCambio:   "Mantenimiento finalizado",
+		ServicioOrigen: "MANTENIMIENTO",
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("marshaling vehicle update payload: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s", c.baseURL, vehicleID.String())
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(body))
+	url := fmt.Sprintf("%s/api/vehiculos/%s/estado", c.baseURL, vehicleID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("creating vehicle update request: %w", err)
 	}

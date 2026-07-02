@@ -16,8 +16,8 @@ import (
 
 func TestNewCorrectiveMaintenance_Success(t *testing.T) {
 	// Arrange
-	vehicleID := uuid.New()
-	incidentID := uuid.New()
+	vehicleID := "ABC-123"
+	incidentID := "INC-123"
 	severity := uint8(5)
 
 	// Act
@@ -38,7 +38,7 @@ func TestNewCorrectiveMaintenance_Success(t *testing.T) {
 
 func TestNewCorrectiveMaintenance_InvalidVehicleID(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewCorrectiveMaintenance(uuid.Nil, uuid.New(), 5)
+	m, err := domain.NewCorrectiveMaintenance("", "INC-123", 5)
 
 	// Assert
 	assert.Nil(t, m)
@@ -47,7 +47,7 @@ func TestNewCorrectiveMaintenance_InvalidVehicleID(t *testing.T) {
 
 func TestNewCorrectiveMaintenance_InvalidIncidentID(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewCorrectiveMaintenance(uuid.New(), uuid.Nil, 5)
+	m, err := domain.NewCorrectiveMaintenance("ABC-123", "", 5)
 
 	// Assert
 	assert.Nil(t, m)
@@ -56,7 +56,7 @@ func TestNewCorrectiveMaintenance_InvalidIncidentID(t *testing.T) {
 
 func TestNewCorrectiveMaintenance_SeverityTooLow(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 0)
+	m, err := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 0)
 
 	// Assert
 	assert.Nil(t, m)
@@ -65,7 +65,7 @@ func TestNewCorrectiveMaintenance_SeverityTooLow(t *testing.T) {
 
 func TestNewCorrectiveMaintenance_SeverityTooHigh(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 11)
+	m, err := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 11)
 
 	// Assert
 	assert.Nil(t, m)
@@ -74,7 +74,7 @@ func TestNewCorrectiveMaintenance_SeverityTooHigh(t *testing.T) {
 
 func TestNewCorrectiveMaintenance_SeverityBoundary_Min(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 1)
+	m, err := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 1)
 
 	// Assert
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestNewCorrectiveMaintenance_SeverityBoundary_Min(t *testing.T) {
 
 func TestNewCorrectiveMaintenance_SeverityBoundary_Max(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 10)
+	m, err := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 10)
 
 	// Assert
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestNewCorrectiveMaintenance_SeverityBoundary_Max(t *testing.T) {
 
 func TestNewPreventiveMaintenance_Success(t *testing.T) {
 	// Arrange
-	vehicleID := uuid.New()
+	vehicleID := "ABC-123"
 
 	// Act
 	m, err := domain.NewPreventiveMaintenance(vehicleID)
@@ -113,7 +113,7 @@ func TestNewPreventiveMaintenance_Success(t *testing.T) {
 
 func TestNewPreventiveMaintenance_InvalidVehicleID(t *testing.T) {
 	// Arrange & Act
-	m, err := domain.NewPreventiveMaintenance(uuid.Nil)
+	m, err := domain.NewPreventiveMaintenance("")
 
 	// Assert
 	assert.Nil(t, m)
@@ -126,7 +126,7 @@ func TestNewPreventiveMaintenance_InvalidVehicleID(t *testing.T) {
 
 func TestMarkInProgress_FromQueued_Success(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 
 	// Act
 	err := m.MarkInProgress()
@@ -138,7 +138,7 @@ func TestMarkInProgress_FromQueued_Success(t *testing.T) {
 
 func TestMarkInProgress_FromInProgress_Fails(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 
 	// Act
@@ -150,7 +150,7 @@ func TestMarkInProgress_FromInProgress_Fails(t *testing.T) {
 
 func TestMarkInProgress_FromCompleted_Fails(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 	_ = m.MarkCompleted()
 
@@ -163,7 +163,7 @@ func TestMarkInProgress_FromCompleted_Fails(t *testing.T) {
 
 func TestMarkCompleted_FromInProgress_Success(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 
 	// Act
@@ -177,7 +177,7 @@ func TestMarkCompleted_FromInProgress_Success(t *testing.T) {
 
 func TestMarkCompleted_FromQueued_Fails(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 
 	// Act
 	err := m.MarkCompleted()
@@ -188,7 +188,7 @@ func TestMarkCompleted_FromQueued_Fails(t *testing.T) {
 
 func TestMarkFailed_FromInProgress_Success(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 
 	// Act
@@ -201,7 +201,7 @@ func TestMarkFailed_FromInProgress_Success(t *testing.T) {
 
 func TestMarkFailed_FromQueued_Fails(t *testing.T) {
 	// Arrange
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 
 	// Act
 	err := m.MarkFailed()
@@ -215,43 +215,43 @@ func TestMarkFailed_FromQueued_Fails(t *testing.T) {
 // =============================================================================
 
 func TestIsQueued_WhenQueued(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	assert.True(t, m.IsQueued())
 }
 
 func TestIsQueued_WhenNotQueued(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 	assert.False(t, m.IsQueued())
 }
 
 func TestIsInProgress_WhenInProgress(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 	assert.True(t, m.IsInProgress())
 }
 
 func TestIsInProgress_WhenNotInProgress(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	assert.False(t, m.IsInProgress())
 }
 
 func TestIsTerminal_WhenCompleted(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 	_ = m.MarkCompleted()
 	assert.True(t, m.IsTerminal())
 }
 
 func TestIsTerminal_WhenFailed(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
 	_ = m.MarkFailed()
 	assert.True(t, m.IsTerminal())
 }
 
 func TestIsTerminal_WhenQueued(t *testing.T) {
-	m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	assert.False(t, m.IsTerminal())
 }
 

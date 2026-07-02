@@ -139,11 +139,11 @@ func (wp *WorkerPool) processMaintenance(ctx context.Context, m *domain.Maintena
 		return
 	}
 
-	if err := wp.vehicleClient.UpdateVehicleMaintenanceStatus(ctx, m.VehicleID, 0); err != nil {
+	if err := wp.vehicleClient.UpdateVehicleMaintenanceStatus(ctx, m.VehicleID); err != nil {
 		wp.logger.WarnContext(
 			ctx, "failed to update vehicle maintenance status",
 			slog.String("maintenance_id", m.ID.String()),
-			slog.String("vehicle_id", m.VehicleID.String()),
+			slog.String("vehicle_id", m.VehicleID),
 			slog.String("error", err.Error()),
 		)
 	}

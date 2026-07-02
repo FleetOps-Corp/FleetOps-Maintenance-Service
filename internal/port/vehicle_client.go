@@ -3,7 +3,6 @@ package port
 import (
 	"context"
 
-	"github.com/google/uuid"
 
 	"github.com/fleetops/maintenance/internal/domain"
 )
@@ -23,6 +22,5 @@ type VehicleClient interface {
 
 	// UpdateVehicleMaintenanceStatus notifies the Vehicles microservice that a
 	// vehicle's maintenance has been completed, resetting the days counter.
-	// SAD Reference: Process Network 1 & 2 — Step 10/8: "PUT a /vehículos"
-	UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID uuid.UUID, daysReset int) error
+	UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID string) error
 }

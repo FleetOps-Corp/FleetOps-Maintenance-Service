@@ -3,7 +3,6 @@ package domain_test
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetops/maintenance/internal/domain"
@@ -12,7 +11,7 @@ import (
 func TestNeedsPreventiveMaintenance_KmThresholdExceeded(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       15000,
 		DaysSinceLastMaintenance: 30,
 		Available:                true,
@@ -25,7 +24,7 @@ func TestNeedsPreventiveMaintenance_KmThresholdExceeded(t *testing.T) {
 func TestNeedsPreventiveMaintenance_DaysThresholdExceeded(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       5000,
 		DaysSinceLastMaintenance: 100,
 		Available:                true,
@@ -38,7 +37,7 @@ func TestNeedsPreventiveMaintenance_DaysThresholdExceeded(t *testing.T) {
 func TestNeedsPreventiveMaintenance_BothThresholdsExceeded(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       20000,
 		DaysSinceLastMaintenance: 120,
 		Available:                true,
@@ -51,7 +50,7 @@ func TestNeedsPreventiveMaintenance_BothThresholdsExceeded(t *testing.T) {
 func TestNeedsPreventiveMaintenance_NeitherThresholdExceeded(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       5000,
 		DaysSinceLastMaintenance: 30,
 		Available:                true,
@@ -64,7 +63,7 @@ func TestNeedsPreventiveMaintenance_NeitherThresholdExceeded(t *testing.T) {
 func TestNeedsPreventiveMaintenance_NotAvailable(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       20000,
 		DaysSinceLastMaintenance: 120,
 		Available:                false,
@@ -77,7 +76,7 @@ func TestNeedsPreventiveMaintenance_NotAvailable(t *testing.T) {
 func TestNeedsPreventiveMaintenance_ExactKmThreshold(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       10000,
 		DaysSinceLastMaintenance: 30,
 		Available:                true,
@@ -90,7 +89,7 @@ func TestNeedsPreventiveMaintenance_ExactKmThreshold(t *testing.T) {
 func TestNeedsPreventiveMaintenance_ExactDaysThreshold(t *testing.T) {
 	// Arrange
 	v := &domain.Vehicle{
-		ID:                       uuid.New(),
+		ID:                       "ABC-123",
 		KilometersRecorded:       5000,
 		DaysSinceLastMaintenance: 90,
 		Available:                true,

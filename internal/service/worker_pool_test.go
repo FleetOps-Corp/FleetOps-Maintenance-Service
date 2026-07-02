@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -57,8 +56,8 @@ func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
 
-	vehicleID := uuid.New()
-	m1, _ := domain.NewCorrectiveMaintenance(vehicleID, uuid.New(), 5)
+	vehicleID := "ABC-123"
+	m1, _ := domain.NewCorrectiveMaintenance(vehicleID, "INC-123", 5)
 
 	queued := []*domain.Maintenance{m1}
 
@@ -71,7 +70,7 @@ func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
 	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil)
 
-	vehicleClient.On("UpdateVehicleMaintenanceStatus", mock.Anything, vehicleID, 0).
+	vehicleClient.On("UpdateVehicleMaintenanceStatus", mock.Anything, vehicleID).
 		Return(nil)
 
 	// Act — use short poll interval to trigger quickly
@@ -97,7 +96,7 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 	// Create more items than maxWorkers
 	var queued []*domain.Maintenance
 	for i := 0; i < 10; i++ {
-		m, _ := domain.NewCorrectiveMaintenance(uuid.New(), uuid.New(), 5)
+		m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 		queued = append(queued, m)
 	}
 
@@ -107,7 +106,7 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 		Return([]*domain.Maintenance{}, nil)
 	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil)
-	vehicleClient.On("UpdateVehicleMaintenanceStatus", mock.Anything, mock.Anything, 0).
+	vehicleClient.On("UpdateVehicleMaintenanceStatus", mock.Anything, mock.Anything).
 		Return(nil)
 
 	// Act — maxWorkers = 3, but 10 items; all should still be processed

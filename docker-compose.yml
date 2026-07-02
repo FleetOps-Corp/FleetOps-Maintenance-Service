@@ -57,6 +57,10 @@ services:
       - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/incidentes-queue
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:
@@ -70,6 +74,30 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    networks:
+      - fleetops-net
+
+  # ---------------------------------------------------------------------------
+  # LocalStack — Local AWS Cloud Stack (SQS)
+  # ---------------------------------------------------------------------------
+  localstack:
+    image: localstack/localstack:3.4.0
+    container_name: fleetops-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./scripts/localstack-setup.sh:/etc/localstack/init/ready.d/setup.sh:ro
+    healthcheck:
+      test: ["CMD", "curl", "-s", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - fleetops-net
 
@@ -119,6 +147,8 @@ volumes:
     name: fleetops-prometheus-data
   grafana_data:
     name: fleetops-grafana-data
+  localstack_data:
+    name: fleetops-localstack-data
 
 # Custom network for inter-service communication (Rule R4)
 networks:

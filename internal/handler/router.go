@@ -56,6 +56,7 @@ func NewRouter(
 			// Process Network 3: Query maintenance queue
 			r.Get("/", maintenanceHandler.ListAll)
 			r.Get("/cola", maintenanceHandler.GetQueueSummary)
+			r.Get("/reporte", maintenanceHandler.GetReport)
 			r.Get("/{id}", maintenanceHandler.GetByID)
 		})
 	})

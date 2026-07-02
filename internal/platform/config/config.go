@@ -38,6 +38,10 @@ type Config struct {
 
 	// Observability
 	MetricsEnabled bool
+
+	// Messaging
+	SQSQueueURL string
+	AWSRegion   string
 }
 
 // Load reads configuration from environment variables.
@@ -99,6 +103,9 @@ func Load() (*Config, error) {
 	}
 
 	cfg.MetricsEnabled = getEnvOrDefault("METRICS_ENABLED", "true") == "true"
+
+	cfg.SQSQueueURL = os.Getenv("SQS_QUEUE_URL")
+	cfg.AWSRegion = getEnvOrDefault("AWS_REGION", "us-east-1")
 
 	return cfg, nil
 }

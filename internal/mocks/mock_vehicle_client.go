@@ -3,7 +3,6 @@ package mocks
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/fleetops/maintenance/internal/domain"
@@ -23,7 +22,7 @@ func (m *MockVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 	return args.Get(0).([]*domain.Vehicle), args.Error(1)
 }
 
-func (m *MockVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID uuid.UUID, daysReset int) error {
-	args := m.Called(ctx, vehicleID, daysReset)
+func (m *MockVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID string) error {
+	args := m.Called(ctx, vehicleID)
 	return args.Error(0)
 }

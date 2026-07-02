@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/google/uuid"
+
 
 // Vehicle represents the Anti-Corruption Layer (ACL) boundary model for vehicle
 // data received from the external Vehicles microservice. This value object
@@ -11,7 +11,7 @@ import "github.com/google/uuid"
 // SAD Reference: Process Network 2 — "El microservicio de vehículos retorna
 // una lista con todos los vehículos existentes"
 type Vehicle struct {
-	ID                       uuid.UUID
+	ID                       string
 	LicensePlate             string
 	KilometersRecorded       float64
 	DaysSinceLastMaintenance int

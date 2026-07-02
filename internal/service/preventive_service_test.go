@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,10 +27,10 @@ func TestSchedulePreventive_Success_FiltersAndCreates(t *testing.T) {
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: uuid.New(), KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},   // qualifies (km)
-		{ID: uuid.New(), KilometersRecorded: 5000, DaysSinceLastMaintenance: 100, Available: true},   // qualifies (days)
-		{ID: uuid.New(), KilometersRecorded: 3000, DaysSinceLastMaintenance: 20, Available: true},    // does NOT qualify
-		{ID: uuid.New(), KilometersRecorded: 20000, DaysSinceLastMaintenance: 120, Available: false}, // NOT available
+		{ID: "V1", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},   // qualifies (km)
+		{ID: "V2", KilometersRecorded: 5000, DaysSinceLastMaintenance: 100, Available: true},   // qualifies (days)
+		{ID: "V3", KilometersRecorded: 3000, DaysSinceLastMaintenance: 20, Available: true},    // does NOT qualify
+		{ID: "V4", KilometersRecorded: 20000, DaysSinceLastMaintenance: 120, Available: false}, // NOT available
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
@@ -60,7 +59,7 @@ func TestSchedulePreventive_NoVehiclesQualify(t *testing.T) {
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: uuid.New(), KilometersRecorded: 5000, DaysSinceLastMaintenance: 30, Available: true},
+		{ID: "V1", KilometersRecorded: 5000, DaysSinceLastMaintenance: 30, Available: true},
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
@@ -102,8 +101,8 @@ func TestSchedulePreventive_RepositoryError_ContinuesProcessing(t *testing.T) {
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: uuid.New(), KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},
-		{ID: uuid.New(), KilometersRecorded: 20000, DaysSinceLastMaintenance: 30, Available: true},
+		{ID: "V1", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},
+		{ID: "V2", KilometersRecorded: 20000, DaysSinceLastMaintenance: 30, Available: true},
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)

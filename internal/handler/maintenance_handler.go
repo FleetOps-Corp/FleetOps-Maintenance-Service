@@ -140,6 +140,41 @@ func (h *MaintenanceHandler) GetQueueSummary(w http.ResponseWriter, r *http.Requ
 	h.respondJSON(w, http.StatusOK, summary)
 }
 
+// GetReport handles GET /api/v1/mantenimientos/reporte
+// Returns a simplified list of maintenances for reporting purposes.
+func (h *MaintenanceHandler) GetReport(w http.ResponseWriter, r *http.Request) {
+	items, err := h.queueSvc.ListAll(r.Context())
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "report_failed", "Failed to retrieve maintenances for report")
+		return
+	}
+
+	report := make([]dto.ReportResponse, 0, len(items))
+	for _, m := range items {
+		// Map status: true = in_progress (en mant), false = queued (programado)
+		// For other statuses, we can default to false or handle them if needed.
+		estadoMant := m.IsInProgress()
+		
+		// Map severity: if > 0 it's GRAVE (corrective), else LEVE (preventive)
+		gravedad := "LEVE"
+		if m.Severity > 0 {
+			gravedad = "GRAVE"
+		}
+
+		// Map date: use CreatedAt as the scheduled/maintenance date
+		fechaMant := m.CreatedAt.Format("2006-01-02T15:04:05Z")
+
+		report = append(report, dto.ReportResponse{
+			VehicleID:         m.VehicleID,
+			MaintenanceDate:   fechaMant,
+			MaintenanceStatus: estadoMant,
+			Severity:          gravedad,
+		})
+	}
+
+	h.respondJSON(w, http.StatusOK, report)
+}
+
 // respondJSON writes a JSON response with the given status code.
 func (h *MaintenanceHandler) respondJSON(w http.ResponseWriter, code int, data any) {
 	w.Header().Set("Content-Type", "application/json")
