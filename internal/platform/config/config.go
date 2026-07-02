@@ -5,6 +5,8 @@ import (
 	"math"
 	"os"
 	"strconv"
+	
+	"github.com/joho/godotenv"
 )
 
 // Config holds all externalized configuration for the maintenance microservice.
@@ -48,6 +50,8 @@ type Config struct {
 // Load reads configuration from environment variables.
 // It returns an error if any required variable is missing or invalid.
 func Load() (*Config, error) {
+	_ = godotenv.Load() // silently load .env if it exists
+	
 	cfg := &Config{}
 
 	cfg.ServerPort = getEnvOrDefault("SERVER_PORT", "8080")
