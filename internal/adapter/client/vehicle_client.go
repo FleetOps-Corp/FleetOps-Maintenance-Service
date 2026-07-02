@@ -105,7 +105,7 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 		// isAvailable := ev.EstadoVehiculo == "DISPONIBLE" && ev.Activo // If strictly available
 
 		vehicles = append(vehicles, &domain.Vehicle{
-			ID:                       ev.IdVehiculo,
+			ID:                       ev.NumeroPlaca, // The rest of our system treats VehicleID as the Placa
 			LicensePlate:             ev.NumeroPlaca,
 			KilometersRecorded:       ev.Kilometraje,
 			DaysSinceLastMaintenance: daysSince,
@@ -122,19 +122,21 @@ type vehicleUpdatePayload struct {
 	ServicioOrigen string `json:"servicioOrigen"`
 }
 
-// SAD Reference: "PATCH a /vehículos/{id}/estado — actualiza estado a DISPONIBLE"
+// SAD Reference: "PATCH a /vehículos/{id}/estado — actualiza estado a EN_MANTENIMIENTO"
 func (c *HTTPVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID string) error {
 	payload := vehicleUpdatePayload{
-		NuevoEstado:    "DISPONIBLE",
-		MotivoCambio:   "Mantenimiento finalizado",
-		ServicioOrigen: "MANTENIMIENTO",
+		NuevoEstado:    "EN_MANTENIMIENTO",
+		MotivoCambio:   "reparacion del motor",
+		ServicioOrigen: "microservicio-mantenimientos",
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("marshaling vehicle update payload: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/vehiculos/%s/estado", c.baseURL, vehicleID)
+	// The team provided /vehiculos/placa/{placa}/estado, but we only have the VehicleID (UUID)
+	// at this point in the worker pool. We will send the UUID and see if their backend accepts it.
+	url := fmt.Sprintf("%s/vehiculos/placa/%s/estado", c.baseURL, vehicleID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("creating vehicle update request: %w", err)
