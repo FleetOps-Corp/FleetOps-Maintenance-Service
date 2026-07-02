@@ -64,7 +64,7 @@ func main() {
 
 	// Data Access Layer: Adapters (implement Port interfaces)
 	maintenanceRepo := repository.NewPostgresMaintenanceRepository(pool)
-	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.HTTPClientTimeoutSecs)
+	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs)
 
 	// Business Logic Layer: Services (depend on Port interfaces)
 	correctiveSvc := service.NewCorrectiveMaintenanceService(maintenanceRepo, log)

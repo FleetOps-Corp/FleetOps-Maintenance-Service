@@ -34,6 +34,7 @@ type Config struct {
 
 	// External Services
 	VehiclesServiceURL    string
+	VehiclesAPIToken      string
 	HTTPClientTimeoutSecs int
 
 	// Observability
@@ -95,7 +96,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("PREVENTIVE_DAYS_THRESHOLD: %w", err)
 	}
 
-	cfg.VehiclesServiceURL = getEnvOrDefault("VEHICLES_SERVICE_URL", "http://api-gateway:8000/api/v1/vehiculos")
+	cfg.VehiclesServiceURL = getEnvOrDefault("VEHICLES_SERVICE_URL", "http://api-gateway:8000")
+	cfg.VehiclesAPIToken = getEnvOrDefault("VEHICLES_API_TOKEN", "")
 
 	cfg.HTTPClientTimeoutSecs, err = getEnvAsInt("HTTP_CLIENT_TIMEOUT_SECONDS", 10)
 	if err != nil {

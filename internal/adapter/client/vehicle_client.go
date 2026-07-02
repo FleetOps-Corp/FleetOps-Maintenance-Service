@@ -25,13 +25,15 @@ var _ port.VehicleClient = (*HTTPVehicleClient)(nil)
 // SAD Reference: Process Network 2 — "GET /vehiculos", "PUT /vehiculos"
 type HTTPVehicleClient struct {
 	baseURL    string
+	token      string
 	httpClient *http.Client
 }
 
 // NewHTTPVehicleClient constructs an HTTPVehicleClient.
-func NewHTTPVehicleClient(baseURL string, timeoutSecs int) *HTTPVehicleClient {
+func NewHTTPVehicleClient(baseURL, token string, timeoutSecs int) *HTTPVehicleClient {
 	return &HTTPVehicleClient{
 		baseURL: baseURL,
+		token:   token,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSecs) * time.Second,
 		},
@@ -41,11 +43,16 @@ func NewHTTPVehicleClient(baseURL string, timeoutSecs int) *HTTPVehicleClient {
 // externalVehicle represents the JSON structure returned by the external
 // Vehicles microservice. This is the "foreign" model that gets translated.
 type externalVehicle struct {
-	ID                       string  `json:"id"`
-	LicensePlate             string  `json:"license_plate"`
-	KilometersRecorded       float64 `json:"kilometers_recorded"`
-	DaysSinceLastMaintenance int     `json:"days_since_last_maintenance"`
-	Available                bool    `json:"available"`
+	IdVehiculo      string  `json:"idVehiculo"`
+	NumeroPlaca     string  `json:"numeroPlaca"`
+	Kilometraje     float64 `json:"kilometraje"`
+	FechaUltimoMant string  `json:"fechaUltimoMant"`
+	EstadoVehiculo  string  `json:"estadoVehiculo"`
+	Activo          bool    `json:"activo"`
+}
+
+type vehiclesResponse struct {
+	Content []externalVehicle `json:"content"`
 }
 
 // GetAllVehicles fetches all vehicles from the Vehicles microservice and
@@ -53,11 +60,15 @@ type externalVehicle struct {
 //
 // ACL Translation: externalVehicle → domain.Vehicle
 func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehicle, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL, nil)
+	url := fmt.Sprintf("%s/vehiculos/disponibles", c.baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating vehicle list request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -69,23 +80,36 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 		return nil, fmt.Errorf("vehicle service returned status %d", resp.StatusCode)
 	}
 
-	var external []externalVehicle
-	if err := json.NewDecoder(resp.Body).Decode(&external); err != nil {
+	var wrapper vehiclesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
 		return nil, fmt.Errorf("decoding vehicle list response: %w", err)
 	}
 
 	// ACL Translation: convert external models to domain models
-	vehicles := make([]*domain.Vehicle, 0, len(external))
-	for _, ev := range external {
-		if ev.ID == "" {
+	vehicles := make([]*domain.Vehicle, 0, len(wrapper.Content))
+	for _, ev := range wrapper.Content {
+		if ev.IdVehiculo == "" {
 			continue // skip vehicles with invalid IDs
 		}
+
+		// Calculate days since last maintenance
+		daysSince := 0
+		if ev.FechaUltimoMant != "" {
+			parsedDate, err := time.Parse("2006-01-02", ev.FechaUltimoMant)
+			if err == nil {
+				duration := time.Since(parsedDate)
+				daysSince = int(duration.Hours() / 24)
+			}
+		}
+
+		// isAvailable := ev.EstadoVehiculo == "DISPONIBLE" && ev.Activo // If strictly available
+
 		vehicles = append(vehicles, &domain.Vehicle{
-			ID:                       ev.ID,
-			LicensePlate:             ev.LicensePlate,
-			KilometersRecorded:       ev.KilometersRecorded,
-			DaysSinceLastMaintenance: ev.DaysSinceLastMaintenance,
-			Available:                ev.Available,
+			ID:                       ev.IdVehiculo,
+			LicensePlate:             ev.NumeroPlaca,
+			KilometersRecorded:       ev.Kilometraje,
+			DaysSinceLastMaintenance: daysSince,
+			Available:                ev.EstadoVehiculo == "DISPONIBLE", // Map ENUM to our boolean
 		})
 	}
 
@@ -116,6 +140,9 @@ func (c *HTTPVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, 
 		return fmt.Errorf("creating vehicle update request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

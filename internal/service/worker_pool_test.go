@@ -92,7 +92,6 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
-
 	// Create more items than maxWorkers
 	var queued []*domain.Maintenance
 	for i := 0; i < 10; i++ {
