@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder
 # -----------------------------------------------------------------------------
-FROM golang:1.22.4-alpine3.20 AS builder
+FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
