@@ -127,7 +127,7 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 	}
 
 	// Crear el mantenimiento correctivo
-	_, err := c.correctiveSvc.CreateCorrective(ctx, event.VehicleID, event.IncidentID, randomSeverity)
+	_, err = c.correctiveSvc.CreateCorrective(ctx, event.VehicleID, event.IncidentID, randomSeverity)
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to create corrective maintenance from SQS", slog.String("error", err.Error()))
 		// No eliminamos el mensaje para que vuelva a la cola (DLQ eventual)
