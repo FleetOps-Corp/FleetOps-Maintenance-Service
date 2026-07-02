@@ -123,6 +123,7 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 	n, err := rand.Int(rand.Reader, big.NewInt(10))
 	var randomSeverity uint8 = 5 // default fallback
 	if err == nil {
+		//nolint:gosec // n.Int64() is between 0 and 9, so it fits safely in uint8
 		randomSeverity = uint8(n.Int64() + 1)
 	}
 
