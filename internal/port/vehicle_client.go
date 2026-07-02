@@ -3,7 +3,6 @@ package port
 import (
 	"context"
 
-
 	"github.com/fleetops/maintenance/internal/domain"
 )
 

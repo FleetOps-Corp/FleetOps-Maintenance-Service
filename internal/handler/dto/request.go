@@ -1,7 +1,5 @@
 package dto
 
-
-
 // CreateMaintenanceRequest represents the JSON payload received when creating
 // a new corrective maintenance record.
 //

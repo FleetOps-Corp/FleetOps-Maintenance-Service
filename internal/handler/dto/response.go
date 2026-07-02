@@ -2,8 +2,9 @@ package dto
 
 import (
 	"time"
-	"github.com/google/uuid"
+
 	"github.com/fleetops/maintenance/internal/domain"
+	"github.com/google/uuid"
 )
 
 // MaintenanceResponse represents a single maintenance record in API responses.
@@ -67,8 +68,8 @@ type QueueSummaryResponse struct {
 
 // ReportResponse represents a simplified view of a maintenance record for reports.
 type ReportResponse struct {
-	VehicleID            string `json:"id_vehiculo"`
-	MaintenanceDate      string `json:"fecha_de_mantenimiento"`
-	MaintenanceStatus    bool   `json:"estado_mantenimiento"`
-	Severity             string `json:"gravedad"`
+	VehicleID         string `json:"id_vehiculo"`
+	MaintenanceDate   string `json:"fecha_de_mantenimiento"`
+	MaintenanceStatus bool   `json:"estado_mantenimiento"`
+	Severity          string `json:"gravedad"`
 }

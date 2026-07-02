@@ -154,7 +154,7 @@ func (h *MaintenanceHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 		// Map status: true = in_progress (en mant), false = queued (programado)
 		// For other statuses, we can default to false or handle them if needed.
 		estadoMant := m.IsInProgress()
-		
+
 		// Map severity: if > 0 it's GRAVE (corrective), else LEVE (preventive)
 		gravedad := "LEVE"
 		if m.Severity > 0 {

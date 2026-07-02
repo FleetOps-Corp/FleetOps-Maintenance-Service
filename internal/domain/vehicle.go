@@ -1,7 +1,5 @@
 package domain
 
-
-
 // Vehicle represents the Anti-Corruption Layer (ACL) boundary model for vehicle
 // data received from the external Vehicles microservice. This value object
 // translates the external service's model into the maintenance domain's language,

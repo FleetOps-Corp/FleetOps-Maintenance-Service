@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-
 	"github.com/fleetops/maintenance/internal/domain"
 	"github.com/fleetops/maintenance/internal/port"
 )
