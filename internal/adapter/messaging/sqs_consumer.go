@@ -2,9 +2,10 @@ package messaging
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"log/slog"
-	"math/rand"
+	"math/big"
 	"sync"
 	"time"
 
@@ -119,8 +120,11 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 	c.logger.InfoContext(ctx, "processing grave mechanic incident", slog.String("incident_id", event.IncidentID), slog.String("vehicle_id", event.VehicleID))
 
 	// Como es grave, asignamos aleatoriamente gravedad del 1 al 10 para determinar el tiempo que tomara
-	//nolint:gosec // El puntaje de severidad no requiere criptografia segura
-	randomSeverity := uint8(rand.Intn(10) + 1)
+	n, err := rand.Int(rand.Reader, big.NewInt(10))
+	var randomSeverity uint8 = 5 // default fallback
+	if err == nil {
+		randomSeverity = uint8(n.Int64() + 1)
+	}
 
 	// Crear el mantenimiento correctivo
 	_, err := c.correctiveSvc.CreateCorrective(ctx, event.VehicleID, event.IncidentID, randomSeverity)
