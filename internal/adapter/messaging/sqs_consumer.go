@@ -118,7 +118,8 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 
 	c.logger.InfoContext(ctx, "processing grave mechanic incident", slog.String("incident_id", event.IncidentID), slog.String("vehicle_id", event.VehicleID))
 
-	// Como es grave, asignamos aleatoriamente gravedad del 1 al 10 para determinar cuánto tiempo tardará
+	// Como es grave, asignamos aleatoriamente gravedad del 1 al 10 para determinar el tiempo que tomara
+	//nolint:gosec // El puntaje de severidad no requiere criptografia segura
 	randomSeverity := uint8(rand.Intn(10) + 1)
 
 	// Crear el mantenimiento correctivo
