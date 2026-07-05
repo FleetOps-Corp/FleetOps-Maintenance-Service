@@ -37,47 +37,6 @@ func NewMaintenanceHandler(
 	}
 }
 
-// CreateCorrective handles POST /api/v1/mantenimientos
-// This is the primary transactional flow entry point (Rule R2).
-//
-// SAD Reference: Process Network 1 — Steps 3-9
-// Flow: Receive HTTP → Validate DTO → Delegate to Service → Return Response
-func (h *MaintenanceHandler) CreateCorrective(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateMaintenanceRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
-		return
-	}
-
-	// Step 4: HTTP Handler validates the received data
-	if err := req.Validate(); err != nil {
-		h.respondError(w, http.StatusBadRequest, "validation_error", err.Error())
-		return
-	}
-
-	// Step 5-8: Delegate to service layer
-	maintenance, err := h.correctiveSvc.CreateCorrective(
-		r.Context(),
-		req.VehicleID,
-		req.IncidentID,
-		req.Severity,
-	)
-	if err != nil {
-		if errors.Is(err, domain.ErrInvalidVehicleID) ||
-			errors.Is(err, domain.ErrInvalidIncidentID) ||
-			errors.Is(err, domain.ErrInvalidSeverity) {
-			h.respondError(w, http.StatusBadRequest, "domain_validation_error", err.Error())
-			return
-		}
-		h.respondError(w, http.StatusInternalServerError, "creation_failed", "Failed to create maintenance")
-		return
-	}
-
-	// Step 9: Return confirmation
-	h.respondJSON(w, http.StatusCreated, dto.FromDomain(maintenance))
-}
-
 // ListAll handles GET /api/v1/mantenimientos
 //
 // SAD Reference: Process Network 3 — "Consulta de Cola de Mantenimientos"
