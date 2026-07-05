@@ -21,7 +21,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_HOST }} "
             set -e
 
-            if [ ! -d /home/ec2-user/FleetOps-Maintenance-Service ]; then
+            if [ ! -d /home/ubuntu/deploy ]; then
               git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git /home/ubuntu/deploy
             fi
 
