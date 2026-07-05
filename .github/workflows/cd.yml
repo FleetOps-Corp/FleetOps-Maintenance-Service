@@ -14,15 +14,23 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Write SSH key
-        run: |
+        run:
           echo "${{ secrets.EC2_KEY }}" > key.pem
           chmod 600 key.pem
 
-      - name: Deploy code on EC2 using git pull
+      - name: Deploy on EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@${{ secrets.EC2_HOST }} "
-            cd /home/ec2-user 
-            git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git
-            cd FleetOps-Maintenance-Service
-            docker compose up
+            set -e
+
+            if [ ! -d /home/ec2-user/FleetOps-Maintenance-Service ]; then
+              git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git /home/ec2-user/deploy
+            fi
+
+            cd /home/ec2-user/deploy
+            git pull
+
+            printf '%s\n' '${{ secrets.PRODUCTION_ENV }}' > .env
+
+            docker compose up -d --build
           "
