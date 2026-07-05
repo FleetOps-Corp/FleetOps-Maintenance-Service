@@ -1,0 +1,28 @@
+name: CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write SSH key
+        run: |
+          echo "${{ secrets.EC2_KEY }}" > key.pem
+          chmod 600 key.pem
+
+      - name: Deploy code on EC2 using git pull
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@${{ secrets.EC2_HOST }} "
+            cd /home/ec2-user 
+            git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git
+            cd FleetOps-Maintenance-Service
+            docker compose up
+          "
