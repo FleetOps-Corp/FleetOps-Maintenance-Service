@@ -18,14 +18,14 @@ jobs:
 
       - name: Deploy on EC2
         run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@${{ secrets.EC2_HOST }} "
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_HOST }} "
             set -e
 
             if [ ! -d /home/ec2-user/FleetOps-Maintenance-Service ]; then
-              git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git /home/ec2-user/deploy
+              git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git /home/ubuntu/deploy
             fi
 
-            cd /home/ec2-user/deploy
+            cd /home/ubuntu/deploy
             git pull
 
             printf '%s\n' '${{ secrets.PRODUCTION_ENV }}' > .env
