@@ -105,10 +105,6 @@ services:
 volumes:
   pgdata:
     name: fleetops-maintenance-pgdata
-  prometheus_data:
-    name: fleetops-prometheus-data
-  grafana_data:
-    name: fleetops-grafana-data
   localstack_data:
     name: fleetops-localstack-data
 
