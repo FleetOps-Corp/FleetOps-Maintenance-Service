@@ -15,10 +15,16 @@ import (
 	"github.com/fleetops/maintenance/internal/handler/dto"
 )
 
-type contextKey string
+// contextKey is an unexported empty struct to avoid key collisions in context.
+type contextKey struct{}
 
-// UserClaimsKey is the context key to store and retrieve claims from request context.
-const UserClaimsKey contextKey = "user_claims"
+var userClaimsKey = contextKey{}
+
+// ClaimsFromContext safely extracts the parsed JWT claims from the request context.
+func ClaimsFromContext(ctx context.Context) (jwt.MapClaims, bool) {
+	claims, ok := ctx.Value(userClaimsKey).(jwt.MapClaims)
+	return claims, ok
+}
 
 // JWTAuth returns a middleware that validates JWT tokens using an RSA public key.
 func JWTAuth(publicKey *rsa.PublicKey, algorithm string, logger *slog.Logger) func(http.Handler) http.Handler {
@@ -40,11 +46,11 @@ func JWTAuth(publicKey *rsa.PublicKey, algorithm string, logger *slog.Logger) fu
 
 			tokenStr := parts[1]
 
-			// Parse and validate token
-			token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+			// Parse and validate token (using 't' as parameter to avoid shadowing the outer 'token' variable)
+			token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 				// Validate signing method algorithm matches config
-				if token.Method.Alg() != algorithm {
-					return nil, fmt.Errorf("unexpected signing method algorithm: %v", token.Header["alg"])
+				if t.Method.Alg() != algorithm {
+					return nil, fmt.Errorf("unexpected signing method algorithm: %v", t.Header["alg"])
 				}
 				return publicKey, nil
 			})
@@ -75,7 +81,7 @@ func JWTAuth(publicKey *rsa.PublicKey, algorithm string, logger *slog.Logger) fu
 			}
 
 			// Add claims to context so handlers can access user info if needed
-			ctx := context.WithValue(r.Context(), UserClaimsKey, claims)
+			ctx := context.WithValue(r.Context(), userClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
