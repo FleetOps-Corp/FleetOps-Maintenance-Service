@@ -1,11 +1,13 @@
 package config
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"math"
 	"os"
 	"strconv"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 )
 
@@ -45,6 +47,11 @@ type Config struct {
 	// Messaging
 	SQSQueueURL string
 	AWSRegion   string
+
+	// JWT Authentication
+	JWTAlgorithm     string
+	JWTPublicKeyPath string
+	JWTPublicKey     *rsa.PublicKey
 }
 
 // Load reads configuration from environment variables.
@@ -112,6 +119,32 @@ func Load() (*Config, error) {
 
 	cfg.SQSQueueURL = os.Getenv("SQS_QUEUE_URL")
 	cfg.AWSRegion = getEnvOrDefault("AWS_REGION", "us-east-1")
+
+	// JWT configuration loading
+	cfg.JWTAlgorithm = getEnvOrDefault("JWT_ALGORITHM", "RS256")
+	cfg.JWTPublicKeyPath = getEnvOrDefault("JWT_PUBLIC_KEY_PATH", "")
+
+	if cfg.JWTPublicKeyPath != "" {
+		path := cfg.JWTPublicKeyPath
+		// Fallback for local development if running outside container
+		if _, err := os.Stat(path); os.IsNotExist(err) && path == "/run/secrets/jwt_public.pem" {
+			localFallback := "./secrets/jwt_public.pem"
+			if _, errSub := os.Stat(localFallback); errSub == nil {
+				path = localFallback
+			}
+		}
+		keyBytes, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read JWT public key file from path %q (resolved: %q): %w", cfg.JWTPublicKeyPath, path, err)
+		}
+		pubKey, err := jwt.ParseRSAPublicKeyFromPEM(keyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse JWT public key: %w", err)
+		}
+		cfg.JWTPublicKey = pubKey
+	} else {
+		return nil, fmt.Errorf("JWT_PUBLIC_KEY_PATH is required but not set")
+	}
 
 	return cfg, nil
 }
