@@ -50,8 +50,6 @@ func NewRouter(
 	// Versioned API routes
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/mantenimientos", func(r chi.Router) {
-			// Process Network 1: Create corrective maintenance
-			r.Post("/", maintenanceHandler.CreateCorrective)
 
 			// Process Network 3: Query maintenance queue
 			r.Get("/", maintenanceHandler.ListAll)
