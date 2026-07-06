@@ -114,13 +114,13 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 	}
 
 	var payload struct {
-		ID           string `json:"id"`
-		FechaHora    string `json:"fecha_hora"`
-		DriverID     string `json:"id_conductor"`
-		VehiclePlate string `json:"placa_vehiculo"`
-		IncidentType string `json:"tipo_incidente"`
-		Severity     string `json:"gravedad"`
-		Description  string `json:"descripcion"`
+		ID           string `json:"incident_id"`
+		FechaHora    string `json:"event_date"`
+		DriverID     string `json:"driver_id"`
+		VehiclePlate string `json:"vehicle_id"`
+		IncidentType string `json:"incident_type"`
+		Severity     string `json:"severity"`
+		Description  string `json:"description"`
 	}
 	if err := json.Unmarshal([]byte(snsEnvelope.Message), &payload); err != nil {
 		c.logger.WarnContext(ctx, "failed to parse SNS nested Message", slog.String("error", err.Error()), slog.String("message", snsEnvelope.Message))
