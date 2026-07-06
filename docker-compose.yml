@@ -53,8 +53,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fleetops-maintenance-svc
-    env_file:
-      - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       SQS_QUEUE_URL: http://localstack:4566/000000000000/incidentes-queue
