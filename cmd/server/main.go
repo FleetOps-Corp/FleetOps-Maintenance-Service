@@ -84,7 +84,7 @@ func main() {
 	healthHandler := handler.NewHealthHandler(pool)
 
 	// Router
-	router := handler.NewRouter(maintenanceHandler, healthHandler, log, cfg.MetricsEnabled)
+	router := handler.NewRouter(maintenanceHandler, healthHandler, log, cfg.MetricsEnabled, cfg.JWTPublicKey, cfg.JWTAlgorithm)
 
 	// =========================================================================
 	// Start background services
