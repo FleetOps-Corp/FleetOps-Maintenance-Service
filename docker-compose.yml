@@ -53,8 +53,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fleetops-maintenance-svc
-    env_file:
-      - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       SQS_QUEUE_URL: ${SQS_QUEUE_URL:-http://localstack:4566/000000000000/maintenance-queue}
@@ -99,52 +97,10 @@ services:
     networks:
       - fleetops-net
 
-  # ---------------------------------------------------------------------------
-  # Prometheus — Metric Collection
-  # SAD Reference: ADR-10
-  # ---------------------------------------------------------------------------
-  prometheus:
-    image: prom/prometheus:v2.53.0
-    container_name: fleetops-prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    depends_on:
-      maintenance:
-        condition: service_healthy
-    networks:
-      - fleetops-net
-
-  # ---------------------------------------------------------------------------
-  # Grafana — Metric Visualization and Monitoring
-  # SAD Reference: ADR-10
-  # ---------------------------------------------------------------------------
-  grafana:
-    image: grafana/grafana:11.1.0
-    container_name: fleetops-grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - fleetops-net
-
 # Named volumes for data persistence (Rule R4)
 volumes:
   pgdata:
     name: fleetops-maintenance-pgdata
-  prometheus_data:
-    name: fleetops-prometheus-data
-  grafana_data:
-    name: fleetops-grafana-data
   localstack_data:
     name: fleetops-localstack-data
 

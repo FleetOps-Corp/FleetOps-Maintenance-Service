@@ -1,0 +1,32 @@
+name: CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write SSH key
+        run: echo "${{ secrets.EC2_KEY }}" > key.pem && chmod 600 key.pem
+
+      - name: Deploy on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_HOST }} "
+            set -e
+
+            if [ ! -d /home/ubuntu/deploy ]; then
+              git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git /home/ubuntu/deploy
+            fi
+
+            cd /home/ubuntu/deploy
+            git pull
+
+            printf '%s\n' '${{ secrets.PRODUCTION_ENV }}' > .env
+
+            docker compose up -d --build --remove-orphans
+          "
