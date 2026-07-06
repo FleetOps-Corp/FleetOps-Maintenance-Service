@@ -50,3 +50,7 @@ tmp/
 *.pdf
 sad_extracted.txt
 extract_pdf.py
+
+# Secrets (never commit private keys)
+secrets/jwt_private.pem
+

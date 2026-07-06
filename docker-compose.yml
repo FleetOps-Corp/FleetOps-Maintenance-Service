@@ -59,6 +59,10 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
+    volumes:
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:
