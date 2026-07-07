@@ -23,7 +23,10 @@ type jwtTestCase struct {
 	authHeader     string
 	setupToken     func() string
 	expectedStatus int
-	verifyResponse func(t *testing.T, rec *httptest.ResponseRecorder)
+	expectedSub    string
+	expectedRole   string
+	expectedError  string
+	expectedMsg    string
 }
 
 func TestJWTAuth(t *testing.T) {
@@ -58,13 +61,8 @@ func TestJWTAuth(t *testing.T) {
 				}, jwt.SigningMethodRS256)
 			},
 			expectedStatus: http.StatusOK,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var respClaims jwt.MapClaims
-				errDec := json.NewDecoder(rec.Body).Decode(&respClaims)
-				require.NoError(t, errDec)
-				require.Equal(t, "user-123", respClaims["sub"])
-				require.Equal(t, "admin", respClaims["role"])
-			},
+			expectedSub:    "user-123",
+			expectedRole:   "admin",
 		},
 		{
 			name: "valid token with multiple spaces",
@@ -76,38 +74,22 @@ func TestJWTAuth(t *testing.T) {
 				}, jwt.SigningMethodRS256)
 			},
 			expectedStatus: http.StatusOK,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var respClaims jwt.MapClaims
-				errDec := json.NewDecoder(rec.Body).Decode(&respClaims)
-				require.NoError(t, errDec)
-				require.Equal(t, "user-123", respClaims["sub"])
-				require.Equal(t, "admin", respClaims["role"])
-			},
+			expectedSub:    "user-123",
+			expectedRole:   "admin",
 		},
 		{
 			name:           "missing authorization header",
 			authHeader:     "",
 			expectedStatus: http.StatusUnauthorized,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var errResp dto.ErrorResponse
-				errDec := json.NewDecoder(rec.Body).Decode(&errResp)
-				require.NoError(t, errDec)
-				require.Equal(t, "unauthorized", errResp.Error)
-				require.Equal(t, "Missing authentication token.", errResp.Message)
-				require.Equal(t, http.StatusUnauthorized, errResp.Code)
-			},
+			expectedError:  "unauthorized",
+			expectedMsg:    "Missing authentication token.",
 		},
 		{
 			name:           "malformed authorization header",
 			authHeader:     "Bearer-Token",
 			expectedStatus: http.StatusUnauthorized,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var errResp dto.ErrorResponse
-				errDec := json.NewDecoder(rec.Body).Decode(&errResp)
-				require.NoError(t, errDec)
-				require.Equal(t, "invalid_token_format", errResp.Error)
-				require.Equal(t, "Invalid authentication token format. Use Bearer <token>.", errResp.Message)
-			},
+			expectedError:  "invalid_token_format",
+			expectedMsg:    "Invalid authentication token format. Use Bearer <token>.",
 		},
 		{
 			name: "expired token",
@@ -118,14 +100,8 @@ func TestJWTAuth(t *testing.T) {
 				}, jwt.SigningMethodRS256)
 			},
 			expectedStatus: http.StatusUnauthorized,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				require.Equal(t, "Bearer", rec.Header().Get("WWW-Authenticate"))
-				var errResp dto.ErrorResponse
-				errDec := json.NewDecoder(rec.Body).Decode(&errResp)
-				require.NoError(t, errDec)
-				require.Equal(t, "token_expired", errResp.Error)
-				require.Equal(t, "Token has expired. Please log in again.", errResp.Message)
-			},
+			expectedError:  "token_expired",
+			expectedMsg:    "Token has expired. Please log in again.",
 		},
 		{
 			name: "invalid signature",
@@ -136,12 +112,7 @@ func TestJWTAuth(t *testing.T) {
 				}, jwt.SigningMethodRS256)
 			},
 			expectedStatus: http.StatusUnauthorized,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var errResp dto.ErrorResponse
-				errDec := json.NewDecoder(rec.Body).Decode(&errResp)
-				require.NoError(t, errDec)
-				require.Equal(t, "invalid_token", errResp.Error)
-			},
+			expectedError:  "invalid_token",
 		},
 		{
 			name: "unexpected algorithm",
@@ -155,12 +126,7 @@ func TestJWTAuth(t *testing.T) {
 				return "Bearer " + tokenString
 			},
 			expectedStatus: http.StatusUnauthorized,
-			verifyResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var errResp dto.ErrorResponse
-				errDec := json.NewDecoder(rec.Body).Decode(&errResp)
-				require.NoError(t, errDec)
-				require.Equal(t, "invalid_token", errResp.Error)
-			},
+			expectedError:  "invalid_token",
 		},
 	}
 
@@ -197,7 +163,24 @@ func executeTestScenario(t *testing.T, tt jwtTestCase, handlerToTest http.Handle
 	handlerToTest.ServeHTTP(rr, req)
 
 	require.Equal(t, tt.expectedStatus, rr.Code)
-	if tt.verifyResponse != nil {
-		tt.verifyResponse(t, rr)
+
+	if tt.expectedStatus == http.StatusOK {
+		var respClaims jwt.MapClaims
+		errDec := json.NewDecoder(rr.Body).Decode(&respClaims)
+		require.NoError(t, errDec)
+		require.Equal(t, tt.expectedSub, respClaims["sub"])
+		require.Equal(t, tt.expectedRole, respClaims["role"])
+	} else {
+		var errResp dto.ErrorResponse
+		errDec := json.NewDecoder(rr.Body).Decode(&errResp)
+		require.NoError(t, errDec)
+		require.Equal(t, tt.expectedError, errResp.Error)
+		if tt.expectedMsg != "" {
+			require.Equal(t, tt.expectedMsg, errResp.Message)
+		}
+		require.Equal(t, tt.expectedStatus, errResp.Code)
+		if tt.expectedError == "token_expired" {
+			require.Equal(t, "Bearer", rr.Header().Get("WWW-Authenticate"))
+		}
 	}
 }
