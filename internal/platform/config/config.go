@@ -28,10 +28,10 @@ type Config struct {
 	DatabaseMaxConns int32
 
 	// Domain & Business Rules
-	MaxWorkers             int
-	WorkerPollIntervalSecs int
-	CronIntervalDays       int
-	PreventiveKmThreshold  float64
+	MaxWorkers              int
+	WorkerPollIntervalSecs  int
+	CronIntervalDays        int
+	PreventiveKmThreshold   float64
 	PreventiveDaysThreshold int
 
 	// Integration Clients
