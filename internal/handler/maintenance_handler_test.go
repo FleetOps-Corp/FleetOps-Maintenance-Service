@@ -1,7 +1,6 @@
 package handler_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -35,101 +34,6 @@ func setupHandler() (*handler.MaintenanceHandler, *mocks.MockMaintenanceReposito
 	queueSvc := service.NewQueueService(repo, logger)
 	h := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, logger)
 	return h, repo
-}
-
-// =============================================================================
-// CreateCorrective handler tests
-// =============================================================================
-
-func TestCreateCorrective_Handler_Success(t *testing.T) {
-	// Arrange
-	h, repo := setupHandler()
-
-	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).Return(nil)
-
-	body := dto.CreateMaintenanceRequest{
-		VehicleID:  "ABC-123",
-		IncidentID: "INC-123",
-		Severity:   5,
-	}
-	jsonBody, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/mantenimientos", bytes.NewReader(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	// Act
-	h.CreateCorrective(rr, req)
-
-	// Assert
-	assert.Equal(t, http.StatusCreated, rr.Code)
-
-	var resp dto.MaintenanceResponse
-	err := json.NewDecoder(rr.Body).Decode(&resp)
-	require.NoError(t, err)
-	assert.Equal(t, body.VehicleID, resp.VehicleID)
-	assert.Equal(t, "corrective", resp.Type)
-	assert.Equal(t, "queued", resp.Status)
-	repo.AssertExpectations(t)
-}
-
-func TestCreateCorrective_Handler_InvalidJSON(t *testing.T) {
-	// Arrange
-	h, _ := setupHandler()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/mantenimientos",
-		bytes.NewReader([]byte("not json")))
-	rr := httptest.NewRecorder()
-
-	// Act
-	h.CreateCorrective(rr, req)
-
-	// Assert
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-}
-
-func TestCreateCorrective_Handler_ValidationError(t *testing.T) {
-	// Arrange
-	h, _ := setupHandler()
-
-	body := dto.CreateMaintenanceRequest{
-		VehicleID:  "", // invalid
-		IncidentID: "INC-123",
-		Severity:   5,
-	}
-	jsonBody, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/mantenimientos",
-		bytes.NewReader(jsonBody))
-	rr := httptest.NewRecorder()
-
-	// Act
-	h.CreateCorrective(rr, req)
-
-	// Assert
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-}
-
-func TestCreateCorrective_Handler_SeverityValidation(t *testing.T) {
-	// Arrange
-	h, _ := setupHandler()
-
-	body := dto.CreateMaintenanceRequest{
-		VehicleID:  "ABC-123",
-		IncidentID: "INC-123",
-		Severity:   0, // invalid
-	}
-	jsonBody, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/mantenimientos",
-		bytes.NewReader(jsonBody))
-	rr := httptest.NewRecorder()
-
-	// Act
-	h.CreateCorrective(rr, req)
-
-	// Assert
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 // =============================================================================

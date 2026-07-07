@@ -101,10 +101,42 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 	}
 
 	var event IncidentEvent
-	if err := json.Unmarshal([]byte(*msg.Body), &event); err != nil {
-		c.logger.WarnContext(ctx, "failed to parse incident event JSON", slog.String("error", err.Error()), slog.String("body", *msg.Body))
+
+	// The queue contains SNS envelopes. Unmarshal the envelope first,
+	// then unmarshal the nested Message (which uses Spanish keys).
+	var snsEnvelope struct {
+		Message string `json:"Message"`
+	}
+	if err := json.Unmarshal([]byte(*msg.Body), &snsEnvelope); err != nil {
+		c.logger.WarnContext(ctx, "failed to parse SNS envelope JSON", slog.String("error", err.Error()), slog.String("body", *msg.Body))
 		c.deleteMessage(ctx, msg.ReceiptHandle)
 		return
+	}
+
+	var payload struct {
+		ID           string `json:"incident_id"`
+		FechaHora    string `json:"event_date"`
+		DriverID     string `json:"driver_id"`
+		VehiclePlate string `json:"vehicle_id"`
+		IncidentType string `json:"incident_type"`
+		Severity     string `json:"severity"`
+		Description  string `json:"description"`
+	}
+	if err := json.Unmarshal([]byte(snsEnvelope.Message), &payload); err != nil {
+		c.logger.WarnContext(ctx, "failed to parse SNS nested Message", slog.String("error", err.Error()), slog.String("message", snsEnvelope.Message))
+		c.deleteMessage(ctx, msg.ReceiptHandle)
+		return
+	}
+
+	// Map Spanish payload to internal IncidentEvent
+	event = IncidentEvent{
+		IncidentID:   payload.ID,
+		DriverID:     payload.DriverID,
+		VehicleID:    payload.VehiclePlate,
+		IncidentType: payload.IncidentType,
+		Severity:     payload.Severity,
+		Description:  payload.Description,
+		EventDate:    payload.FechaHora,
 	}
 
 	// Filtrado: solo procesamos MECANICO y GRAVE

@@ -55,10 +55,14 @@ services:
     container_name: fleetops-maintenance-svc
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-      SQS_QUEUE_URL: http://localstack:4566/000000000000/incidentes-queue
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-http://localstack:4566/000000000000/maintenance-queue}
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
+    volumes:
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:
@@ -86,8 +90,8 @@ services:
     environment:
       - SERVICES=sqs
       - DEFAULT_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
     volumes:
       - localstack_data:/var/lib/localstack
       - ./scripts/localstack-setup.sh:/etc/localstack/init/ready.d/setup.sh:ro
