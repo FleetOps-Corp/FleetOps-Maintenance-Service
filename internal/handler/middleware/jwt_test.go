@@ -18,6 +18,14 @@ import (
 	"github.com/fleetops/maintenance/internal/handler/middleware"
 )
 
+type jwtTestCase struct {
+	name           string
+	authHeader     string
+	setupToken     func() string
+	expectedStatus int
+	verifyResponse func(t *testing.T, rec *httptest.ResponseRecorder)
+}
+
 func TestJWTAuth(t *testing.T) {
 	// Generate key pair for testing
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -39,13 +47,7 @@ func TestJWTAuth(t *testing.T) {
 		return tokenString
 	}
 
-	tests := []struct {
-		name           string
-		authHeader     string
-		setupToken     func() string
-		expectedStatus int
-		verifyResponse func(t *testing.T, rec *httptest.ResponseRecorder)
-	}{
+	tests := []jwtTestCase{
 		{
 			name: "valid token",
 			setupToken: func() string {
@@ -162,38 +164,40 @@ func TestJWTAuth(t *testing.T) {
 		},
 	}
 
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := middleware.ClaimsFromContext(r.Context())
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(claims)
+	})
+
+	mw := middleware.JWTAuth(publicKey, "RS256", logger)
+	handlerToTest := mw(dummyHandler)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				claims, ok := middleware.ClaimsFromContext(r.Context())
-				if !ok {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				_ = json.NewEncoder(w).Encode(claims)
-			})
-
-			mw := middleware.JWTAuth(publicKey, "RS256", logger)
-			handlerToTest := mw(dummyHandler)
-
-			req := httptest.NewRequest("GET", "/test", nil)
-			if tt.setupToken != nil {
-				req.Header.Set("Authorization", tt.setupToken())
-			} else {
-				if tt.authHeader != "" {
-					req.Header.Set("Authorization", tt.authHeader)
-				}
-			}
-
-			rr := httptest.NewRecorder()
-			handlerToTest.ServeHTTP(rr, req)
-
-			require.Equal(t, tt.expectedStatus, rr.Code)
-			if tt.verifyResponse != nil {
-				tt.verifyResponse(t, rr)
-			}
+			executeTestScenario(t, tt, handlerToTest)
 		})
+	}
+}
+
+func executeTestScenario(t *testing.T, tt jwtTestCase, handlerToTest http.Handler) {
+	req := httptest.NewRequest("GET", "/test", nil)
+	if tt.setupToken != nil {
+		req.Header.Set("Authorization", tt.setupToken())
+	} else if tt.authHeader != "" {
+		req.Header.Set("Authorization", tt.authHeader)
+	}
+
+	rr := httptest.NewRecorder()
+	handlerToTest.ServeHTTP(rr, req)
+
+	require.Equal(t, tt.expectedStatus, rr.Code)
+	if tt.verifyResponse != nil {
+		tt.verifyResponse(t, rr)
 	}
 }

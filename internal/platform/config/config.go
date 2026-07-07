@@ -27,16 +27,14 @@ type Config struct {
 	DatabaseURL      string
 	DatabaseMaxConns int32
 
-	// Worker Pool (Bulkhead)
+	// Domain & Business Rules
 	MaxWorkers             int
 	WorkerPollIntervalSecs int
-
-	// Preventive Maintenance
-	CronIntervalDays        int
-	PreventiveKmThreshold   float64
+	CronIntervalDays       int
+	PreventiveKmThreshold  float64
 	PreventiveDaysThreshold int
 
-	// External Services
+	// Integration Clients
 	VehiclesServiceURL    string
 	VehiclesAPIToken      string
 	HTTPClientTimeoutSecs int
@@ -64,69 +62,92 @@ func Load() (*Config, error) {
 	cfg.ServerPort = getEnvOrDefault("SERVER_PORT", "8080")
 	cfg.LogLevel = getEnvOrDefault("LOG_LEVEL", "info")
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		return nil, fmt.Errorf("required environment variable DATABASE_URL is not set")
-	}
-	cfg.DatabaseURL = dbURL
-
-	maxConns, err := getEnvAsInt("DATABASE_MAX_CONNS", 10)
-	if err != nil {
-		return nil, fmt.Errorf("DATABASE_MAX_CONNS: %w", err)
+	if err := loadDatabaseConfig(cfg); err != nil {
+		return nil, err
 	}
 
-	if maxConns < 0 || maxConns > math.MaxInt32 {
-		return nil, fmt.Errorf("invalid maxConns: %d (out of int32 range)", maxConns)
-	}
-
-	cfg.DatabaseMaxConns = int32(maxConns)
-
-	cfg.MaxWorkers, err = getEnvAsInt("MAX_WORKERS", 5)
-	if err != nil {
-		return nil, fmt.Errorf("MAX_WORKERS: %w", err)
-	}
-
-	cfg.WorkerPollIntervalSecs, err = getEnvAsInt("WORKER_POLL_INTERVAL_SECONDS", 30)
-	if err != nil {
-		return nil, fmt.Errorf("WORKER_POLL_INTERVAL_SECONDS: %w", err)
-	}
-
-	cfg.CronIntervalDays, err = getEnvAsInt("CRON_INTERVAL_DAYS", 7)
-	if err != nil {
-		return nil, fmt.Errorf("CRON_INTERVAL_DAYS: %w", err)
-	}
-
-	kmThresh, err := getEnvAsFloat("PREVENTIVE_KM_THRESHOLD", 10000)
-	if err != nil {
-		return nil, fmt.Errorf("PREVENTIVE_KM_THRESHOLD: %w", err)
-	}
-	cfg.PreventiveKmThreshold = kmThresh
-
-	cfg.PreventiveDaysThreshold, err = getEnvAsInt("PREVENTIVE_DAYS_THRESHOLD", 90)
-	if err != nil {
-		return nil, fmt.Errorf("PREVENTIVE_DAYS_THRESHOLD: %w", err)
+	if err := loadThresholdConfig(cfg); err != nil {
+		return nil, err
 	}
 
 	cfg.VehiclesServiceURL = getEnvOrDefault("VEHICLES_SERVICE_URL", "http://api-gateway:8000")
 	cfg.VehiclesAPIToken = getEnvOrDefault("VEHICLES_API_TOKEN", "")
 
+	var err error
 	cfg.HTTPClientTimeoutSecs, err = getEnvAsInt("HTTP_CLIENT_TIMEOUT_SECONDS", 10)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP_CLIENT_TIMEOUT_SECONDS: %w", err)
 	}
 
 	cfg.MetricsEnabled = getEnvOrDefault("METRICS_ENABLED", "true") == "true"
-
 	cfg.SQSQueueURL = os.Getenv("SQS_QUEUE_URL")
 	cfg.AWSRegion = getEnvOrDefault("AWS_REGION", "us-east-1")
 
-	// JWT configuration loading
+	if err := loadJWTConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func loadDatabaseConfig(cfg *Config) error {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return fmt.Errorf("required environment variable DATABASE_URL is not set")
+	}
+	cfg.DatabaseURL = dbURL
+
+	maxConns, err := getEnvAsInt("DATABASE_MAX_CONNS", 10)
+	if err != nil {
+		return fmt.Errorf("DATABASE_MAX_CONNS: %w", err)
+	}
+
+	if maxConns < 0 || maxConns > math.MaxInt32 {
+		return fmt.Errorf("invalid maxConns: %d (out of int32 range)", maxConns)
+	}
+
+	cfg.DatabaseMaxConns = int32(maxConns)
+	return nil
+}
+
+func loadThresholdConfig(cfg *Config) error {
+	var err error
+	cfg.MaxWorkers, err = getEnvAsInt("MAX_WORKERS", 5)
+	if err != nil {
+		return fmt.Errorf("MAX_WORKERS: %w", err)
+	}
+
+	cfg.WorkerPollIntervalSecs, err = getEnvAsInt("WORKER_POLL_INTERVAL_SECONDS", 30)
+	if err != nil {
+		return fmt.Errorf("WORKER_POLL_INTERVAL_SECONDS: %w", err)
+	}
+
+	cfg.CronIntervalDays, err = getEnvAsInt("CRON_INTERVAL_DAYS", 7)
+	if err != nil {
+		return fmt.Errorf("CRON_INTERVAL_DAYS: %w", err)
+	}
+
+	kmThresh, err := getEnvAsFloat("PREVENTIVE_KM_THRESHOLD", 10000)
+	if err != nil {
+		return fmt.Errorf("PREVENTIVE_KM_THRESHOLD: %w", err)
+	}
+	cfg.PreventiveKmThreshold = kmThresh
+
+	cfg.PreventiveDaysThreshold, err = getEnvAsInt("PREVENTIVE_DAYS_THRESHOLD", 90)
+	if err != nil {
+		return fmt.Errorf("PREVENTIVE_DAYS_THRESHOLD: %w", err)
+	}
+
+	return nil
+}
+
+func loadJWTConfig(cfg *Config) error {
 	cfg.JWTAlgorithm = getEnvOrDefault("JWT_ALGORITHM", "RS256")
 	cfg.JWTPublicKeyPath = getEnvOrDefault("JWT_PUBLIC_KEY_PATH", "/run/secrets/jwt_public.pem")
 
 	// Validate algorithm up-front (only RSA asymmetric signing algorithms are supported for public key verification)
 	if cfg.JWTAlgorithm != "RS256" && cfg.JWTAlgorithm != "RS384" && cfg.JWTAlgorithm != "RS512" {
-		return nil, fmt.Errorf("invalid JWT_ALGORITHM %q: only RS256, RS384, and RS512 are supported for public key signature verification", cfg.JWTAlgorithm)
+		return fmt.Errorf("invalid JWT_ALGORITHM %q: only RS256, RS384, and RS512 are supported for public key signature verification", cfg.JWTAlgorithm)
 	}
 
 	path := cfg.JWTPublicKeyPath
@@ -139,15 +160,14 @@ func Load() (*Config, error) {
 	}
 	keyBytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read JWT public key file from path %q (resolved: %q): %w", cfg.JWTPublicKeyPath, path, err)
+		return fmt.Errorf("failed to read JWT public key file from path %q (resolved: %q): %w", cfg.JWTPublicKeyPath, path, err)
 	}
 	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(keyBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT public key: %w", err)
+		return fmt.Errorf("failed to parse JWT public key: %w", err)
 	}
 	cfg.JWTPublicKey = pubKey
-
-	return cfg, nil
+	return nil
 }
 
 func getEnvOrDefault(key, defaultVal string) string {
