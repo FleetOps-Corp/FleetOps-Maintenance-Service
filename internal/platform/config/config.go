@@ -122,29 +122,30 @@ func Load() (*Config, error) {
 
 	// JWT configuration loading
 	cfg.JWTAlgorithm = getEnvOrDefault("JWT_ALGORITHM", "RS256")
-	cfg.JWTPublicKeyPath = getEnvOrDefault("JWT_PUBLIC_KEY_PATH", "")
+	cfg.JWTPublicKeyPath = getEnvOrDefault("JWT_PUBLIC_KEY_PATH", "/run/secrets/jwt_public.pem")
 
-	if cfg.JWTPublicKeyPath != "" {
-		path := cfg.JWTPublicKeyPath
-		// Fallback for local development if running outside container
-		if _, err := os.Stat(path); os.IsNotExist(err) && path == "/run/secrets/jwt_public.pem" {
-			localFallback := "./secrets/jwt_public.pem"
-			if _, errSub := os.Stat(localFallback); errSub == nil {
-				path = localFallback
-			}
-		}
-		keyBytes, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read JWT public key file from path %q (resolved: %q): %w", cfg.JWTPublicKeyPath, path, err)
-		}
-		pubKey, err := jwt.ParseRSAPublicKeyFromPEM(keyBytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse JWT public key: %w", err)
-		}
-		cfg.JWTPublicKey = pubKey
-	} else {
-		return nil, fmt.Errorf("JWT_PUBLIC_KEY_PATH is required but not set")
+	// Validate algorithm up-front (only RSA asymmetric signing algorithms are supported for public key verification)
+	if cfg.JWTAlgorithm != "RS256" && cfg.JWTAlgorithm != "RS384" && cfg.JWTAlgorithm != "RS512" {
+		return nil, fmt.Errorf("invalid JWT_ALGORITHM %q: only RS256, RS384, and RS512 are supported for public key signature verification", cfg.JWTAlgorithm)
 	}
+
+	path := cfg.JWTPublicKeyPath
+	// Fallback for local development if running outside container
+	if _, err := os.Stat(path); os.IsNotExist(err) && path == "/run/secrets/jwt_public.pem" {
+		localFallback := "./secrets/jwt_public.pem"
+		if _, errSub := os.Stat(localFallback); errSub == nil {
+			path = localFallback
+		}
+	}
+	keyBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read JWT public key file from path %q (resolved: %q): %w", cfg.JWTPublicKeyPath, path, err)
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWT public key: %w", err)
+	}
+	cfg.JWTPublicKey = pubKey
 
 	return cfg, nil
 }
