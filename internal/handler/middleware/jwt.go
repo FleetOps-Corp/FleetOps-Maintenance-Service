@@ -84,7 +84,6 @@ func parseAndValidateToken(tokenStr string, publicKey *rsa.PublicKey, algorithm 
 		}
 		return publicKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
