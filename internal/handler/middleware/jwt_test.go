@@ -89,7 +89,7 @@ func TestJWTAuth(t *testing.T) {
 			authHeader:     "Bearer-Token",
 			expectedStatus: http.StatusUnauthorized,
 			expectedError:  "invalid_token_format",
-			expectedMsg:    "Invalid authentication token format. Use Bearer <token>.",
+			expectedMsg:    "invalid authentication token format: expected Bearer token",
 		},
 		{
 			name: "expired token",

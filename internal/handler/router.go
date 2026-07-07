@@ -55,7 +55,6 @@ func NewRouter(
 		r.Use(middleware.JWTAuth(jwtPublicKey, jwtAlgorithm, logger))
 
 		r.Route("/mantenimientos", func(r chi.Router) {
-
 			// Process Network 3: Query maintenance queue
 			r.Get("/", maintenanceHandler.ListAll)
 			r.Get("/cola", maintenanceHandler.GetQueueSummary)

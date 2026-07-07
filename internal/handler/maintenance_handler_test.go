@@ -36,7 +36,6 @@ func setupHandler() (*handler.MaintenanceHandler, *mocks.MockMaintenanceReposito
 	return h, repo
 }
 
-
 // =============================================================================
 // ListAll handler tests
 // =============================================================================
