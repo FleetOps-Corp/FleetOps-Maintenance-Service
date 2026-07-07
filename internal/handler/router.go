@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/rsa"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
@@ -29,12 +30,13 @@ func NewRouter(
 	healthHandler *HealthHandler,
 	logger *slog.Logger,
 	metricsEnabled bool,
+	jwtPublicKey *rsa.PublicKey,
+	jwtAlgorithm string,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Global middleware
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP)
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
 
@@ -49,6 +51,9 @@ func NewRouter(
 
 	// Versioned API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Secure versioned API endpoints with JWT Auth
+		r.Use(middleware.JWTAuth(jwtPublicKey, jwtAlgorithm, logger))
+
 		r.Route("/mantenimientos", func(r chi.Router) {
 
 			// Process Network 3: Query maintenance queue
