@@ -54,11 +54,9 @@ services:
       dockerfile: Dockerfile
     container_name: fleetops-maintenance-svc
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-http://localstack:4566/000000000000/maintenance-queue}
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-maintenance}:${POSTGRES_PASSWORD:-maintenance_secret}@postgres:5432/${POSTGRES_DB:-maintenance_db}?sslmode=disable}
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-http://localstack:4566/000000000000/incidentes-queue}
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
       JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
     volumes:

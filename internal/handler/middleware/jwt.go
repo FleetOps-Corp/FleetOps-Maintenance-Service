@@ -70,7 +70,7 @@ func extractToken(r *http.Request) (string, error) {
 
 	fields := strings.Fields(authHeader)
 	if len(fields) != 2 || strings.ToLower(fields[0]) != "bearer" {
-		return "", errors.New("Invalid authentication token format. Use Bearer <token>.")
+		return "", errors.New("invalid authentication token format: expected Bearer token")
 	}
 
 	return fields[1], nil
@@ -101,6 +101,8 @@ func parseAndValidateToken(tokenStr string, publicKey *rsa.PublicKey, algorithm 
 }
 
 // respondError writes a structured JSON error response.
+//
+//nolint:unparam
 func respondError(w http.ResponseWriter, code int, errType, message string, logger *slog.Logger) {
 	if code == http.StatusUnauthorized {
 		w.Header().Set("WWW-Authenticate", "Bearer")
