@@ -102,15 +102,15 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 
 	var event IncidentEvent
 
-	// The queue contains SNS envelopes. Unmarshal the envelope first,
-	// then unmarshal the nested Message (which uses Spanish keys).
+	// Some environments may send a plain IncidentEvent JSON body, while others may
+	// send an SNS-to-SQS envelope where Message contains the actual JSON payload.
+	payloadJSON := []byte(*msg.Body)
+
 	var snsEnvelope struct {
 		Message string `json:"Message"`
 	}
-	if err := json.Unmarshal([]byte(*msg.Body), &snsEnvelope); err != nil {
-		c.logger.WarnContext(ctx, "failed to parse SNS envelope JSON", slog.String("error", err.Error()), slog.String("body", *msg.Body))
-		c.deleteMessage(ctx, msg.ReceiptHandle)
-		return
+	if err := json.Unmarshal([]byte(*msg.Body), &snsEnvelope); err == nil && snsEnvelope.Message != "" {
+		payloadJSON = []byte(snsEnvelope.Message)
 	}
 
 	var payload struct {
@@ -122,8 +122,8 @@ func (c *SQSConsumer) processMessage(ctx context.Context, msg types.Message) {
 		Severity     string `json:"severity"`
 		Description  string `json:"description"`
 	}
-	if err := json.Unmarshal([]byte(snsEnvelope.Message), &payload); err != nil {
-		c.logger.WarnContext(ctx, "failed to parse SNS nested Message", slog.String("error", err.Error()), slog.String("message", snsEnvelope.Message))
+	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+		c.logger.WarnContext(ctx, "failed to parse incident event JSON", slog.String("error", err.Error()), slog.String("body", *msg.Body))
 		c.deleteMessage(ctx, msg.ReceiptHandle)
 		return
 	}
