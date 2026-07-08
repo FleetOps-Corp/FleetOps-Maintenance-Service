@@ -12,7 +12,7 @@ jobs:
       - name: Write SSH key
         run: echo "${{ secrets.EC2_KEY }}" > key.pem && chmod 600 key.pem
 
-      - name: Deploy on EC2
+      - name: Deploy app
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_HOST }} "
             set -e
@@ -22,9 +22,29 @@ jobs:
             fi
 
             cd /home/ubuntu/deploy
-            git pull
+            git fetch origin
+            git reset --hard origin/main
 
             printf '%s\n' '${{ secrets.PRODUCTION_ENV }}' > .env
+
+            docker compose up -d --build --remove-orphans
+          "
+
+      - name: Deploy monitoring
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_MONITORING_HOST }} "
+            set -e
+
+            if [ ! -d /home/ubuntu/deploy ]; then
+              git clone https://github.com/FleetOps-Corp/FleetOps-Maintenance-Service.git /home/ubuntu/deploy
+            fi
+
+            cd /home/ubuntu/deploy
+            git fetch origin
+            git reset --hard origin/main
+
+            cd monitoring
+            printf '%s\n' '${{ secrets.MONITORING_ENV }}' > .env
 
             docker compose up -d --build --remove-orphans
           "
