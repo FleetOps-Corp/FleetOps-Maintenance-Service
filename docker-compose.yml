@@ -60,7 +60,7 @@ services:
       JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
     volumes:
-      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ${JWT_PUBLIC_KEY_HOST_PATH:-./secrets/jwt_public.pem}:/run/secrets/jwt_public.pem:ro
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:

@@ -37,6 +37,7 @@ func NewRouter(
 
 	// Global middleware
 	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.RealIP)
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
 
