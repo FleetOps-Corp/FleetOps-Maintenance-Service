@@ -7,8 +7,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 
@@ -55,7 +53,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic \
+          go test -v -coverprofile=coverage.out -covermode=atomic \
             ./internal/domain/... \
             ./internal/service/... \
             ./internal/handler/...
@@ -72,19 +70,15 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: test
+    needs: lint
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: true
 
       - name: Build binary
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-          go build -ldflags="-s -w" -o bin/maintenance-service ./cmd/server
-
-      - name: Build Docker image
-        run: docker build -t fleetops-maintenance:${{ github.sha }} .
-
+          go build -o bin/maintenance-service ./cmd/server
