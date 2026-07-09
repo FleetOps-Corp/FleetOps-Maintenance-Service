@@ -33,10 +33,13 @@ func testLogger() *slog.Logger {
 func setupHandler() (*handler.MaintenanceHandler, *mocks.MockMaintenanceRepository, *mocks.MockEventPublisher) {
 	repo := new(mocks.MockMaintenanceRepository)
 	publisher := new(mocks.MockEventPublisher)
+	vehicleClient := new(mocks.MockVehicleFetcher)
 	logger := testLogger()
 	correctiveSvc := service.NewCorrectiveMaintenanceService(repo, publisher, logger)
 	queueSvc := service.NewQueueService(repo, publisher, logger)
-	h := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, logger)
+	thresholds := map[string]float64{"Automovil": 10000}
+	preventiveSvc := service.NewPreventiveMaintenanceService(repo, vehicleClient, publisher, thresholds, 90, 1, logger)
+	h := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, preventiveSvc, logger)
 	return h, repo, publisher
 }
 
@@ -210,7 +213,7 @@ func TestFinalize_Router_WithJWT(t *testing.T) {
 	assert.NoError(t, err)
 
 	h, repo, publisher := setupHandler()
-	router := handler.NewRouter(h, handler.NewHealthHandler(nil), testLogger(), false, &privateKey.PublicKey, "RS256")
+	router := handler.NewRouter(h, handler.NewHealthHandler(nil), testLogger(), false, &privateKey.PublicKey, "RS256", false)
 
 	id := uuid.New()
 	m := &domain.Maintenance{ID: id, Status: domain.MaintenanceStatusInProgress, VehicleID: "XYZ-123"}

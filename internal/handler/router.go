@@ -32,6 +32,7 @@ func NewRouter(
 	metricsEnabled bool,
 	jwtPublicKey *rsa.PublicKey,
 	jwtAlgorithm string,
+	useMockFallback bool,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -55,10 +56,11 @@ func NewRouter(
 		r.Route("/mantenimientos", func(r chi.Router) {
 			// Public / Bypassed endpoints (Temporal bypass for mechanics)
 			r.Patch("/{id}/finalizar", maintenanceHandler.Finalize)
+			r.Post("/simular", maintenanceHandler.TriggerSimulation)
 
 			// Protected endpoints
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.JWTAuth(jwtPublicKey, jwtAlgorithm, logger))
+				r.Use(middleware.JWTAuth(jwtPublicKey, jwtAlgorithm, useMockFallback, logger))
 
 				// Process Network 3: Query maintenance queue
 				r.Get("/", maintenanceHandler.ListAll)

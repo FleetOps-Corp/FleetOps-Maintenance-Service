@@ -141,7 +141,7 @@ func TestJWTAuth(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(claims)
 	})
 
-	mw := middleware.JWTAuth(publicKey, "RS256", logger)
+	mw := middleware.JWTAuth(publicKey, "RS256", false, logger)
 	handlerToTest := mw(dummyHandler)
 
 	for _, tt := range tests {

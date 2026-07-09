@@ -28,16 +28,26 @@ func ClaimsFromContext(ctx context.Context) (jwt.MapClaims, bool) {
 }
 
 // JWTAuth returns a middleware that validates JWT tokens using an RSA public key.
-func JWTAuth(publicKey *rsa.PublicKey, algorithm string, logger *slog.Logger) func(http.Handler) http.Handler {
+func JWTAuth(publicKey *rsa.PublicKey, algorithm string, useMockFallback bool, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr, err := extractToken(r)
-			if err != nil {
-				logger.Warn("JWT validation failed: header extraction error", slog.String("error", err.Error()))
-				respondError(w, http.StatusUnauthorized, "invalid_token_format", err.Error(), logger)
-				return
-			}
-			if tokenStr == "" {
+			if err != nil || tokenStr == "" {
+				if useMockFallback {
+					logger.Warn("JWT validation failed (missing/invalid token), but USE_MOCK_FALLBACK is enabled: injecting mock claims")
+					mockClaims := jwt.MapClaims{
+						"sub":  "c94aa615-7a83-4566-be05-5f0f13cf2bac",
+						"role": "EMPLEADO_MANTENIMIENTO",
+					}
+					ctx := context.WithValue(r.Context(), userClaimsKey, mockClaims)
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+				if err != nil {
+					logger.Warn("JWT validation failed: header extraction error", slog.String("error", err.Error()))
+					respondError(w, http.StatusUnauthorized, "invalid_token_format", err.Error(), logger)
+					return
+				}
 				logger.Warn("JWT validation failed: missing Authorization header")
 				respondError(w, http.StatusUnauthorized, "unauthorized", "Missing authentication token.", logger)
 				return
@@ -45,6 +55,16 @@ func JWTAuth(publicKey *rsa.PublicKey, algorithm string, logger *slog.Logger) fu
 
 			claims, err := parseAndValidateToken(tokenStr, publicKey, algorithm)
 			if err != nil {
+				if useMockFallback {
+					logger.Warn("JWT validation failed (invalid token signature/expired), but USE_MOCK_FALLBACK is enabled: injecting mock claims", slog.String("error", err.Error()))
+					mockClaims := jwt.MapClaims{
+						"sub":  "c94aa615-7a83-4566-be05-5f0f13cf2bac",
+						"role": "EMPLEADO_MANTENIMIENTO",
+					}
+					ctx := context.WithValue(r.Context(), userClaimsKey, mockClaims)
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
 				if errors.Is(err, jwt.ErrTokenExpired) {
 					logger.Warn("JWT validation failed: token expired")
 					respondError(w, http.StatusUnauthorized, "token_expired", "Token has expired. Please log in again.", logger)
