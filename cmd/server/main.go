@@ -149,7 +149,7 @@ func main() {
 	queueSvc := service.NewQueueService(maintenanceRepo, eventPublisher, log)
 	workerPool := service.NewWorkerPool(
 		maintenanceRepo,
-		cfg.MaxWorkers, cfg.WorkerPollIntervalSecs, log,
+		cfg.MaxWorkers, cfg.WorkerPollIntervalSecs, cfg.UseMockFallback, log,
 	)
 
 	releaseSvc := service.NewReleaseService(maintenanceRepo, eventPublisher, log, cfg.ReleaseMinutesThreshold)

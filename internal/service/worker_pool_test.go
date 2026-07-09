@@ -20,7 +20,7 @@ import (
 func TestWorkerPool_StartAndStop(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	wp := service.NewWorkerPool(repo, 3, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 1, false, newTestLogger())
 
 	// Act — start and immediately stop, should not panic
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,7 +37,7 @@ func TestWorkerPool_StartAndStop(t *testing.T) {
 func TestWorkerPool_StopIsIdempotent(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	wp := service.NewWorkerPool(repo, 3, 60, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 60, false, newTestLogger())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -68,7 +68,7 @@ func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
 		Return(nil)
 
 	// Act — use short poll interval to trigger quickly
-	wp := service.NewWorkerPool(repo, 2, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 2, 1, false, newTestLogger())
 	ctx, cancel := context.WithCancel(context.Background())
 	wp.Start(ctx)
 
@@ -99,7 +99,7 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil)
 	// Act — maxWorkers = 3, but 10 items; all should still be processed
-	wp := service.NewWorkerPool(repo, 3, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 1, false, newTestLogger())
 	ctx, cancel := context.WithCancel(context.Background())
 	wp.Start(ctx)
 
@@ -109,4 +109,38 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 
 	// Assert — all 10 items should be processed (20 UpdateStatus calls: 10 in_progress + 10 completed)
 	repo.AssertCalled(t, "UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance"))
+}
+
+func TestWorkerPool_ProcessesQueuedItems_WithFallback(t *testing.T) {
+	// Arrange
+	repo := new(mocks.MockMaintenanceRepository)
+
+	vehicleID := "ABC-123"
+	m1, _ := domain.NewCorrectiveMaintenance(vehicleID, "INC-123", 5)
+
+	queued := []*domain.Maintenance{m1}
+
+	// First call returns items, subsequent calls return empty
+	repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatus("queued")).
+		Return(queued, nil).Once()
+	repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatus("queued")).
+		Return([]*domain.Maintenance{}, nil)
+
+	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
+		Return(nil)
+
+	// Act — useMockFallback = true
+	wp := service.NewWorkerPool(repo, 2, 1, true, newTestLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	wp.Start(ctx)
+
+	// Wait for processing
+	time.Sleep(2 * time.Second)
+	cancel()
+	wp.Stop()
+
+	// Assert — UpdateStatus should have been called, but the status is IN_PROGRESS (not completed)
+	repo.AssertCalled(t, "UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance"))
+	assert.Equal(t, domain.MaintenanceStatusInProgress, m1.Status)
+	assert.False(t, m1.IsTerminal(), "maintenance should not be completed in fallback mode")
 }
