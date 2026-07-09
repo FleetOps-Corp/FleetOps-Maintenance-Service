@@ -21,6 +21,7 @@ import (
 type MaintenanceHandler struct {
 	correctiveSvc *service.CorrectiveMaintenanceService
 	queueSvc      *service.QueueService
+	preventiveSvc *service.PreventiveMaintenanceService
 	logger        *slog.Logger
 }
 
@@ -28,11 +29,13 @@ type MaintenanceHandler struct {
 func NewMaintenanceHandler(
 	correctiveSvc *service.CorrectiveMaintenanceService,
 	queueSvc *service.QueueService,
+	preventiveSvc *service.PreventiveMaintenanceService,
 	logger *slog.Logger,
 ) *MaintenanceHandler {
 	return &MaintenanceHandler{
 		correctiveSvc: correctiveSvc,
 		queueSvc:      queueSvc,
+		preventiveSvc: preventiveSvc,
 		logger:        logger,
 	}
 }
@@ -154,6 +157,32 @@ func (h *MaintenanceHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondJSON(w, http.StatusOK, report)
+}
+
+// TriggerSimulation manually schedules preventive and corrective maintenance.
+func (h *MaintenanceHandler) TriggerSimulation(w http.ResponseWriter, r *http.Request) {
+	h.logger.InfoContext(r.Context(), "manual trigger simulation endpoint called")
+
+	// 1. Schedule preventive maintenance (forces mock evaluation and queuing)
+	prevItems, err := h.preventiveSvc.SchedulePreventive(r.Context())
+	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed manual preventive scheduling", slog.String("error", err.Error()))
+	}
+
+	// 2. Schedule corrective maintenance
+	corrItem, err := h.correctiveSvc.CreateCorrective(r.Context(), "ABC-123", "INC-MOCK-999", 8)
+	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed manual corrective creation", slog.String("error", err.Error()))
+	}
+
+	resp := map[string]interface{}{
+		"status":                   "success",
+		"message":                  "simulation triggered successfully",
+		"preventive_items_created": len(prevItems),
+		"corrective_item_created":  corrItem != nil,
+	}
+
+	h.respondJSON(w, http.StatusOK, resp)
 }
 
 // respondJSON writes a JSON response with the given status code.
