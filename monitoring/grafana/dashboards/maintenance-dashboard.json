@@ -2,7 +2,7 @@
   "title": "FleetOps Maintenance Service - Go Runtime",
   "uid": "fleetops-go-runtime",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "10s",
   "time": {
@@ -21,12 +21,6 @@
       "title": "Service Availability",
       "type": "stat",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
       "targets": [
         {
           "expr": "up{job=\"fleetops-maintenance\"}",
@@ -39,12 +33,6 @@
       "title": "CPU Usage",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 6,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
       "targets": [
         {
           "expr": "rate(process_cpu_seconds_total[5m])",
@@ -58,16 +46,10 @@
       "title": "Resident Memory",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 12,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
       "targets": [
         {
           "expr": "process_resident_memory_bytes",
-          "legendFormat": "RAM",
+          "legendFormat": "RSS",
           "refId": "A"
         }
       ]
@@ -77,13 +59,7 @@
       "title": "Goroutines",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 18,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
+      targets": [
         {
           "expr": "go_goroutines",
           "legendFormat": "goroutines",
@@ -96,13 +72,7 @@
       "title": "Heap Usage",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "go_memstats_heap_alloc_bytes",
           "legendFormat": "Allocated",
@@ -125,16 +95,10 @@
       "title": "GC Pause Duration",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 8,
-        "y": 4,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "rate(go_gc_duration_seconds_sum[5m]) / rate(go_gc_duration_seconds_count[5m])",
-          "legendFormat": "Average GC pause",
+          "legendFormat": "Average pause",
           "refId": "A"
         }
       ]
@@ -144,13 +108,7 @@
       "title": "Heap Objects",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 16,
-        "y": 4,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "go_memstats_heap_objects",
           "legendFormat": "Objects",
@@ -163,13 +121,7 @@
       "title": "HTTP Requests/sec",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 9,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "sum(rate(http_requests_total[5m])) by (method)",
           "legendFormat": "{{method}}",
@@ -182,13 +134,7 @@
       "title": "HTTP Status Codes",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 8,
-        "y": 9,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "sum(rate(http_requests_total[5m])) by (status_code)",
           "legendFormat": "{{status_code}}",
@@ -201,13 +147,7 @@
       "title": "HTTP Latency p95",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 16,
-        "y": 9,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
@@ -217,16 +157,85 @@
     },
     {
       "id": 11,
+      "title": "Maintenance Created",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      targets": [
+        {
+          "expr": "sum(increase(maintenance_created_total[5m])) by (type)",
+          "legendFormat": "{{type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Maintenance Errors",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      targets": [
+        {
+          "expr": "sum(increase(maintenance_errors_total[5m])) by (operation)",
+          "legendFormat": "{{operation}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Queue Errors",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      targets": [
+        {
+          "expr": "increase(maintenance_queue_errors_total[5m])",
+          "legendFormat": "Queue Errors",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Memory Allocation Rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      targets": [
+        {
+          "expr": "rate(go_memstats_alloc_bytes_total[5m])",
+          "legendFormat": "alloc bytes/sec",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Memory Classes",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      targets": [
+        {
+          "expr": "go_memstats_sys_bytes",
+          "legendFormat": "Go memory",
+          "refId": "A"
+        },
+        {
+          "expr": "go_memstats_stack_inuse_bytes",
+          "legendFormat": "Stack",
+          "refId": "B"
+        },
+        {
+          "expr": "go_memstats_other_sys_bytes",
+          "legendFormat": "Other",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 16,
       "title": "File Descriptors",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 14,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "process_open_fds",
           "legendFormat": "Open",
@@ -240,17 +249,11 @@
       ]
     },
     {
-      "id": 12,
+      "id": 17,
       "title": "Network Traffic",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 8,
-        "y": 14,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "rate(process_network_receive_bytes_total[5m])",
           "legendFormat": "RX",
@@ -264,17 +267,11 @@
       ]
     },
     {
-      "id": 13,
+      "id": 18,
       "title": "Prometheus Scrapes",
       "type": "timeseries",
       "datasource": "Prometheus",
-      "gridPos": {
-        "x": 16,
-        "y": 14,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
+      targets": [
         {
           "expr": "rate(promhttp_metric_handler_requests_total[5m])",
           "legendFormat": "{{code}}",
