@@ -22,7 +22,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,7 +69,7 @@ services:
       migration:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -94,7 +94,7 @@ services:
       - localstack_data:/var/lib/localstack
       - ./scripts/localstack-setup.sh:/etc/localstack/init/ready.d/setup.sh:ro
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:4566/_localstack/health"]
+      test: [ "CMD", "curl", "-s", "http://localhost:4566/_localstack/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
