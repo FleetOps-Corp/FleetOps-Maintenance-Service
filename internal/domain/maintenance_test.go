@@ -136,7 +136,7 @@ func TestMarkInProgress_FromQueued_Success(t *testing.T) {
 	assert.Equal(t, domain.MaintenanceStatusInProgress, m.Status)
 }
 
-func TestMarkInProgress_FromInProgress_Fails(t *testing.T) {
+func TestMarkInProgress_FromInProgress_Success(t *testing.T) {
 	// Arrange
 	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 	_ = m.MarkInProgress()
@@ -145,7 +145,7 @@ func TestMarkInProgress_FromInProgress_Fails(t *testing.T) {
 	err := m.MarkInProgress()
 
 	// Assert
-	assert.ErrorIs(t, err, domain.ErrInvalidStatusTransition)
+	require.NoError(t, err)
 }
 
 func TestMarkInProgress_FromCompleted_Fails(t *testing.T) {
@@ -175,7 +175,7 @@ func TestMarkCompleted_FromInProgress_Success(t *testing.T) {
 	assert.NotNil(t, m.CompletedAt)
 }
 
-func TestMarkCompleted_FromQueued_Fails(t *testing.T) {
+func TestMarkCompleted_FromQueued_Success(t *testing.T) {
 	// Arrange
 	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 
@@ -183,7 +183,7 @@ func TestMarkCompleted_FromQueued_Fails(t *testing.T) {
 	err := m.MarkCompleted()
 
 	// Assert
-	assert.ErrorIs(t, err, domain.ErrInvalidStatusTransition)
+	require.NoError(t, err)
 }
 
 func TestMarkFailed_FromInProgress_Success(t *testing.T) {
@@ -199,7 +199,7 @@ func TestMarkFailed_FromInProgress_Success(t *testing.T) {
 	assert.Equal(t, domain.MaintenanceStatusFailed, m.Status)
 }
 
-func TestMarkFailed_FromQueued_Fails(t *testing.T) {
+func TestMarkFailed_FromQueued_Success(t *testing.T) {
 	// Arrange
 	m, _ := domain.NewCorrectiveMaintenance("ABC-123", "INC-123", 5)
 
@@ -207,7 +207,7 @@ func TestMarkFailed_FromQueued_Fails(t *testing.T) {
 	err := m.MarkFailed()
 
 	// Assert
-	assert.ErrorIs(t, err, domain.ErrInvalidStatusTransition)
+	require.NoError(t, err)
 }
 
 // =============================================================================

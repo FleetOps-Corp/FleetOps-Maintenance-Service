@@ -22,19 +22,22 @@ func TestSchedulePreventive_Success_FiltersAndCreates(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
+	publisher := new(mocks.MockEventPublisher)
+	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
-		repo, vehicleClient, 10000, 90, 7, newTestLogger(),
+		repo, vehicleClient, publisher, kmThresholds, 90, 7, newTestLogger(),
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: "V1", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},   // qualifies (km)
-		{ID: "V2", KilometersRecorded: 5000, DaysSinceLastMaintenance: 100, Available: true},   // qualifies (days)
-		{ID: "V3", KilometersRecorded: 3000, DaysSinceLastMaintenance: 20, Available: true},    // does NOT qualify
-		{ID: "V4", KilometersRecorded: 20000, DaysSinceLastMaintenance: 120, Available: false}, // NOT available
+		{ID: "V1", VehicleType: "Automovil", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},   // qualifies (km)
+		{ID: "V2", VehicleType: "Automovil", KilometersRecorded: 5000, DaysSinceLastMaintenance: 100, Available: true},   // qualifies (days)
+		{ID: "V3", VehicleType: "Automovil", KilometersRecorded: 3000, DaysSinceLastMaintenance: 20, Available: true},    // does NOT qualify
+		{ID: "V4", VehicleType: "Automovil", KilometersRecorded: 20000, DaysSinceLastMaintenance: 120, Available: false}, // NOT available
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
 	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).Return(nil)
+	publisher.On("PublishMaintenanceEvent", mock.Anything, mock.AnythingOfType("*domain.Maintenance"), "CREATED").Return(nil)
 
 	// Act
 	created, err := svc.SchedulePreventive(context.Background())
@@ -54,12 +57,14 @@ func TestSchedulePreventive_NoVehiclesQualify(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
+	publisher := new(mocks.MockEventPublisher)
+	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
-		repo, vehicleClient, 10000, 90, 7, newTestLogger(),
+		repo, vehicleClient, publisher, kmThresholds, 90, 7, newTestLogger(),
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: "V1", KilometersRecorded: 5000, DaysSinceLastMaintenance: 30, Available: true},
+		{ID: "V1", VehicleType: "Automovil", KilometersRecorded: 5000, DaysSinceLastMaintenance: 30, Available: true},
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
@@ -77,8 +82,10 @@ func TestSchedulePreventive_VehicleClientError(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
+	publisher := new(mocks.MockEventPublisher)
+	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
-		repo, vehicleClient, 10000, 90, 7, newTestLogger(),
+		repo, vehicleClient, publisher, kmThresholds, 90, 7, newTestLogger(),
 	)
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(nil, errors.New("connection refused"))
@@ -96,13 +103,15 @@ func TestSchedulePreventive_RepositoryError_ContinuesProcessing(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
+	publisher := new(mocks.MockEventPublisher)
+	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
-		repo, vehicleClient, 10000, 90, 7, newTestLogger(),
+		repo, vehicleClient, publisher, kmThresholds, 90, 7, newTestLogger(),
 	)
 
 	vehicles := []*domain.Vehicle{
-		{ID: "V1", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},
-		{ID: "V2", KilometersRecorded: 20000, DaysSinceLastMaintenance: 30, Available: true},
+		{ID: "V1", VehicleType: "Automovil", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true},
+		{ID: "V2", VehicleType: "Automovil", KilometersRecorded: 20000, DaysSinceLastMaintenance: 30, Available: true},
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
@@ -111,6 +120,7 @@ func TestSchedulePreventive_RepositoryError_ContinuesProcessing(t *testing.T) {
 		Return(errors.New("db error")).Once()
 	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil).Once()
+	publisher.On("PublishMaintenanceEvent", mock.Anything, mock.AnythingOfType("*domain.Maintenance"), "CREATED").Return(nil).Once()
 
 	// Act
 	created, err := svc.SchedulePreventive(context.Background())
@@ -125,8 +135,10 @@ func TestSchedulePreventive_EmptyVehicleList(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
 	vehicleClient := new(mocks.MockVehicleClient)
+	publisher := new(mocks.MockEventPublisher)
+	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
-		repo, vehicleClient, 10000, 90, 7, newTestLogger(),
+		repo, vehicleClient, publisher, kmThresholds, 90, 7, newTestLogger(),
 	)
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return([]*domain.Vehicle{}, nil)

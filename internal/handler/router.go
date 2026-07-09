@@ -37,9 +37,9 @@ func NewRouter(
 
 	// Global middleware
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP) //nolint:staticcheck // RealIP is deprecated but used in the pre-existing codebase structure
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
+	r.Use(middleware.PrometheusMetrics())
 
 	// Health check — outside versioned API
 	r.Get("/health", healthHandler.Check)
@@ -52,15 +52,20 @@ func NewRouter(
 
 	// Versioned API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// Secure versioned API endpoints with JWT Auth
-		r.Use(middleware.JWTAuth(jwtPublicKey, jwtAlgorithm, logger))
-
 		r.Route("/mantenimientos", func(r chi.Router) {
-			// Process Network 3: Query maintenance queue
-			r.Get("/", maintenanceHandler.ListAll)
-			r.Get("/cola", maintenanceHandler.GetQueueSummary)
-			r.Get("/reporte", maintenanceHandler.GetReport)
-			r.Get("/{id}", maintenanceHandler.GetByID)
+			// Public / Bypassed endpoints (Temporal bypass for mechanics)
+			r.Patch("/{id}/finalizar", maintenanceHandler.Finalize)
+
+			// Protected endpoints
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.JWTAuth(jwtPublicKey, jwtAlgorithm, logger))
+
+				// Process Network 3: Query maintenance queue
+				r.Get("/", maintenanceHandler.ListAll)
+				r.Get("/cola", maintenanceHandler.GetQueueSummary)
+				r.Get("/reporte", maintenanceHandler.GetReport)
+				r.Get("/{id}", maintenanceHandler.GetByID)
+			})
 		})
 	})
 

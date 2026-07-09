@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetops/maintenance/internal/domain"
+	"github.com/fleetops/maintenance/internal/platform/metrics"
 	"github.com/fleetops/maintenance/internal/port"
 )
 
@@ -17,13 +18,12 @@ import (
 // propagación de fallos entre tareas concurrentes"
 // Pattern: Bulkhead (Resilience), Worker Pool (Concurrency)
 type WorkerPool struct {
-	repo          port.MaintenanceRepository
-	vehicleClient port.VehicleClient
-	maxWorkers    int
-	pollInterval  time.Duration
-	logger        *slog.Logger
-	stopCh        chan struct{}
-	stopped       sync.Once
+	repo         port.MaintenanceRepository
+	maxWorkers   int
+	pollInterval time.Duration
+	logger       *slog.Logger
+	stopCh       chan struct{}
+	stopped      sync.Once
 }
 
 // NewWorkerPool constructs a WorkerPool with the given concurrency limit (Bulkhead).
@@ -32,18 +32,16 @@ type WorkerPool struct {
 // The maxWorkers parameter implements the Bulkhead N value (env: MAX_WORKERS).
 func NewWorkerPool(
 	repo port.MaintenanceRepository,
-	vehicleClient port.VehicleClient,
 	maxWorkers int,
 	pollIntervalSecs int,
 	logger *slog.Logger,
 ) *WorkerPool {
 	return &WorkerPool{
-		repo:          repo,
-		vehicleClient: vehicleClient,
-		maxWorkers:    maxWorkers,
-		pollInterval:  time.Duration(pollIntervalSecs) * time.Second,
-		logger:        logger,
-		stopCh:        make(chan struct{}),
+		repo:         repo,
+		maxWorkers:   maxWorkers,
+		pollInterval: time.Duration(pollIntervalSecs) * time.Second,
+		logger:       logger,
+		stopCh:       make(chan struct{}),
 	}
 }
 
@@ -126,6 +124,7 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 
 func (wp *WorkerPool) processMaintenance(ctx context.Context, m *domain.Maintenance) {
 	if err := wp.transitionToInProgress(ctx, m); err != nil {
+		metrics.Default().QueueErrorsTotal.Inc()
 		return
 	}
 
@@ -136,17 +135,10 @@ func (wp *WorkerPool) processMaintenance(ctx context.Context, m *domain.Maintena
 	)
 
 	if err := wp.transitionToCompleted(ctx, m); err != nil {
+		metrics.Default().QueueErrorsTotal.Inc()
 		return
 	}
-
-	if err := wp.vehicleClient.UpdateVehicleMaintenanceStatus(ctx, m.VehicleID); err != nil {
-		wp.logger.WarnContext(
-			ctx, "failed to update vehicle maintenance status",
-			slog.String("maintenance_id", m.ID.String()),
-			slog.String("vehicle_id", m.VehicleID),
-			slog.String("error", err.Error()),
-		)
-	}
+	metrics.Default().QueueProcessedTotal.Inc()
 }
 
 func (wp *WorkerPool) transitionToInProgress(ctx context.Context, m *domain.Maintenance) error {
