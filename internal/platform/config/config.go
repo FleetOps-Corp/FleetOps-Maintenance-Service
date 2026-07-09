@@ -79,7 +79,7 @@ func Load() (*Config, error) {
 
 	// Release Configuration
 	var err error
-	cfg.ReleaseMinutesThreshold, err = getEnvAsInt("RELEASE_MINUTES_THRESHOLD", 10)
+	cfg.ReleaseMinutesThreshold, err = getEnvAsInt("RELEASE_MINUTES_THRESHOLD", 1)
 	if err != nil {
 		return nil, fmt.Errorf("RELEASE_MINUTES_THRESHOLD: %w", err)
 	}
@@ -102,7 +102,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg.MetricsEnabled = getEnvOrDefault("METRICS_ENABLED", "true") == "true"
-	cfg.UseMockFallback = getEnvOrDefault("USE_MOCK_FALLBACK", "false") == "true"
+	cfg.UseMockFallback = getEnvOrDefault("USE_MOCK_FALLBACK", "true") == "true"
 	cfg.SQSQueueIncidentsURL = os.Getenv("SQS_INCIDENTS_URL")
 	cfg.SQSQueueVehiclesURL = os.Getenv("SQS_VEHICLES_URL")
 	cfg.AWSRegionIncidents = getEnvOrDefault("AWS_REGION_INCIDENTS", "us-east-1")
