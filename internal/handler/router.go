@@ -39,6 +39,7 @@ func NewRouter(
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
+	r.Use(middleware.PrometheusMetrics())
 
 	// Health check — outside versioned API
 	r.Get("/health", healthHandler.Check)

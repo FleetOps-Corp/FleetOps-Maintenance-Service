@@ -57,7 +57,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"fleetops-maintenance\"}",
+          "expr": "sum(up{job=\"fleetops-maintenance\"})",
           "legendFormat": "Service Up",
           "refId": "A"
         }
@@ -112,7 +112,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"fleetops-maintenance\"}",
+          "expr": "sum(up{job=\"fleetops-maintenance\"})",
           "legendFormat": "Status",
           "refId": "A"
         }
@@ -136,8 +136,7 @@
                 "value": null
               }
             ]
-          },
-          "unit": "decmbytes"
+          }
         },
         "overrides": []
       },
@@ -159,12 +158,12 @@
       },
       "targets": [
         {
-          "expr": "process_resident_memory_bytes{job=\"fleetops-maintenance\"} / 1024 / 1024",
-          "legendFormat": "Resident Memory (MB)",
+          "expr": "sum(rate(http_requests_total[5m])) by (path)",
+          "legendFormat": "{{path}}",
           "refId": "A"
         }
       ],
-      "title": "Memory Usage",
+      "title": "HTTP Requests per Second",
       "type": "timeseries"
     },
     {
@@ -205,12 +204,12 @@
       },
       "targets": [
         {
-          "expr": "rate(process_cpu_seconds_total{job=\"fleetops-maintenance\"}[5m])",
-          "legendFormat": "CPU Usage",
+          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m]))",
+          "legendFormat": "5xx Errors",
           "refId": "A"
         }
       ],
-      "title": "CPU Usage",
+      "title": "HTTP 5xx Errors",
       "type": "timeseries"
     },
     {
@@ -251,12 +250,12 @@
       },
       "targets": [
         {
-          "expr": "go_goroutines{job=\"fleetops-maintenance\"}",
-          "legendFormat": "Goroutines",
+          "expr": "sum(increase(maintenance_created_total[5m])) by (type)",
+          "legendFormat": "{{type}}",
           "refId": "A"
         }
       ],
-      "title": "Active Goroutines",
+      "title": "Maintenance Created",
       "type": "timeseries"
     },
     {
@@ -271,12 +270,11 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "yellow",
                 "value": null
               }
             ]
-          },
-          "unit": "decmbytes"
+          }
         },
         "overrides": []
       },
@@ -298,12 +296,58 @@
       },
       "targets": [
         {
-          "expr": "go_memstats_heap_alloc_bytes{job=\"fleetops-maintenance\"} / 1024 / 1024",
-          "legendFormat": "Heap Alloc (MB)",
+          "expr": "sum(increase(maintenance_errors_total[5m])) by (operation)",
+          "legendFormat": "{{operation}}",
           "refId": "A"
         }
       ],
-      "title": "Heap Allocation",
+      "title": "Maintenance Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(maintenance_queue_processed_total[5m]))",
+          "legendFormat": "Queue Processed",
+          "refId": "A"
+        }
+      ],
+      "title": "Queue Processed",
       "type": "timeseries"
     }
   ],

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetops/maintenance/internal/domain"
+	"github.com/fleetops/maintenance/internal/platform/metrics"
 	"github.com/fleetops/maintenance/internal/port"
 )
 
@@ -88,6 +89,7 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 				slog.String("vehicle_id", v.ID),
 				slog.String("error", err.Error()),
 			)
+			metrics.Default().MaintenanceErrorsTotal.WithLabelValues("create_preventive").Inc()
 			continue
 		}
 
@@ -98,9 +100,11 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 				slog.String("maintenance_id", m.ID.String()),
 				slog.String("error", err.Error()),
 			)
+			metrics.Default().MaintenanceErrorsTotal.WithLabelValues("persist_preventive").Inc()
 			continue
 		}
 
+		metrics.Default().MaintenanceCreatedTotal.WithLabelValues("preventive").Inc()
 		created = append(created, m)
 	}
 
