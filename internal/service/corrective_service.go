@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/fleetops/maintenance/internal/domain"
+	"github.com/fleetops/maintenance/internal/platform/metrics"
 	"github.com/fleetops/maintenance/internal/port"
 )
 
@@ -53,6 +54,7 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 			slog.String("incident_id", incidentID),
 			slog.String("error", err.Error()),
 		)
+		metrics.Default().MaintenanceErrorsTotal.WithLabelValues("create_corrective").Inc()
 		return nil, fmt.Errorf("creating corrective maintenance: %w", err)
 	}
 
@@ -63,8 +65,11 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 			slog.String("maintenance_id", maintenance.ID.String()),
 			slog.String("error", err.Error()),
 		)
+		metrics.Default().MaintenanceErrorsTotal.WithLabelValues("persist_corrective").Inc()
 		return nil, fmt.Errorf("persisting corrective maintenance: %w", err)
 	}
+
+	metrics.Default().MaintenanceCreatedTotal.WithLabelValues("corrective").Inc()
 
 	s.logger.InfoContext(
 		ctx, "corrective maintenance created and queued",

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetops/maintenance/internal/domain"
+	"github.com/fleetops/maintenance/internal/platform/metrics"
 	"github.com/fleetops/maintenance/internal/port"
 )
 
@@ -126,6 +127,7 @@ func (wp *WorkerPool) processQueue(ctx context.Context) {
 
 func (wp *WorkerPool) processMaintenance(ctx context.Context, m *domain.Maintenance) {
 	if err := wp.transitionToInProgress(ctx, m); err != nil {
+		metrics.Default().QueueErrorsTotal.Inc()
 		return
 	}
 
@@ -136,8 +138,11 @@ func (wp *WorkerPool) processMaintenance(ctx context.Context, m *domain.Maintena
 	)
 
 	if err := wp.transitionToCompleted(ctx, m); err != nil {
+		metrics.Default().QueueErrorsTotal.Inc()
 		return
 	}
+
+	metrics.Default().QueueProcessedTotal.Inc()
 
 	if err := wp.vehicleClient.UpdateVehicleMaintenanceStatus(ctx, m.VehicleID); err != nil {
 		wp.logger.WarnContext(
