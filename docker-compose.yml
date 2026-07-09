@@ -63,6 +63,9 @@ services:
       AWS_REGION_VEHICLES: us-east-2
       JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
+      USE_MOCK_FALLBACK: ${USE_MOCK_FALLBACK:-false}
+      RELEASE_MINUTES_THRESHOLD: ${RELEASE_MINUTES_THRESHOLD:-10}
+      RELEASE_POLL_INTERVAL_SECONDS: ${RELEASE_POLL_INTERVAL_SECONDS:-60}
     volumes:
       - ${JWT_PUBLIC_KEY_HOST_PATH:-./secrets/jwt_public.pem}:/run/secrets/jwt_public.pem:ro
     ports:
