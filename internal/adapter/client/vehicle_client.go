@@ -24,21 +24,23 @@ var _ port.VehicleFetcher = (*HTTPVehicleClient)(nil)
 // [Archetype Convention Addition] — Anti-Corruption Layer (DDD best practice)
 // SAD Reference: Process Network 2 — "GET /vehiculos", "PUT /vehiculos"
 type HTTPVehicleClient struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
-	log        *slog.Logger
+	baseURL         string
+	token           string
+	httpClient      *http.Client
+	log             *slog.Logger
+	useMockFallback bool
 }
 
 // NewHTTPVehicleClient constructs an HTTPVehicleClient.
-func NewHTTPVehicleClient(baseURL, token string, timeoutSecs int, log *slog.Logger) *HTTPVehicleClient {
+func NewHTTPVehicleClient(baseURL, token string, timeoutSecs int, useMockFallback bool, log *slog.Logger) *HTTPVehicleClient {
 	return &HTTPVehicleClient{
 		baseURL: baseURL,
 		token:   token,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSecs) * time.Second,
 		},
-		log: log,
+		useMockFallback: useMockFallback,
+		log:             log,
 	}
 }
 
@@ -77,6 +79,10 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 	url := fmt.Sprintf("%s/vehiculos/disponibles", c.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		if c.useMockFallback {
+			c.log.WarnContext(ctx, "failed to create vehicle list request, returning mock vehicles (fallback)", slog.String("error", err.Error()))
+			return c.getMockVehicles(), nil
+		}
 		return nil, fmt.Errorf("creating vehicle list request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
@@ -86,16 +92,28 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		if c.useMockFallback {
+			c.log.WarnContext(ctx, "failed to execute vehicle list request, returning mock vehicles (fallback)", slog.String("error", err.Error()))
+			return c.getMockVehicles(), nil
+		}
 		return nil, fmt.Errorf("executing vehicle list request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if c.useMockFallback {
+			c.log.WarnContext(ctx, "vehicle service returned non-200 status, returning mock vehicles (fallback)", slog.Int("status", resp.StatusCode))
+			return c.getMockVehicles(), nil
+		}
 		return nil, fmt.Errorf("vehicle service returned status %d", resp.StatusCode)
 	}
 
 	var wrapper vehiclesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+		if c.useMockFallback {
+			c.log.WarnContext(ctx, "failed to decode vehicle list response, returning mock vehicles (fallback)", slog.String("error", err.Error()))
+			return c.getMockVehicles(), nil
+		}
 		return nil, fmt.Errorf("decoding vehicle list response: %w", err)
 	}
 
@@ -109,6 +127,38 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 	}
 
 	return vehicles, nil
+}
+
+func (c *HTTPVehicleClient) getMockVehicles() []*domain.Vehicle {
+	return []*domain.Vehicle{
+		{
+			ID:                       "ABC-123",
+			LicensePlate:             "ABC-123",
+			VehicleType:              "Automovil",
+			CreatedAt:                time.Now().Add(-365 * 24 * time.Hour),
+			KilometersRecorded:       12000,
+			DaysSinceLastMaintenance: 95,
+			Available:                true,
+		},
+		{
+			ID:                       "XYZ-789",
+			LicensePlate:             "XYZ-789",
+			VehicleType:              "Camioneta",
+			CreatedAt:                time.Now().Add(-180 * 24 * time.Hour),
+			KilometersRecorded:       15000,
+			DaysSinceLastMaintenance: 45,
+			Available:                true,
+		},
+		{
+			ID:                       "SPE-999",
+			LicensePlate:             "SPE-999",
+			VehicleType:              "Vehiculo_especializado",
+			CreatedAt:                time.Now().Add(-720 * 24 * time.Hour),
+			KilometersRecorded:       5000,
+			DaysSinceLastMaintenance: 120,
+			Available:                true,
+		},
+	}
 }
 
 func (c *HTTPVehicleClient) mapVehicle(ctx context.Context, ev externalVehicle) *domain.Vehicle {

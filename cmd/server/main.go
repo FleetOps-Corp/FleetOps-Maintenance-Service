@@ -43,13 +43,14 @@ func newSQSClient(ctx context.Context, region string, log *slog.Logger) *sqs.Cli
 func newEventPublisher(
 	client *sqs.Client,
 	queueURL string,
+	useMockFallback bool,
 	log *slog.Logger,
 ) port.EventPublisher {
 	if client == nil || queueURL == "" {
 		log.Warn("SQS_VEHICLES_URL is not set, using NOOP Event Publisher")
 		return &noopPublisher{log: log}
 	}
-	return messaging.NewSQSPublisher(client, queueURL, log)
+	return messaging.NewSQSPublisher(client, queueURL, useMockFallback, log)
 }
 
 func startIncidentConsumer(
@@ -123,7 +124,7 @@ func main() {
 
 	// Data Access Layer
 	maintenanceRepo := repository.NewPostgresMaintenanceRepository(pool)
-	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs, log)
+	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs, cfg.UseMockFallback, log)
 
 	// Messaging
 	var sqsIncidentsClient *sqs.Client
@@ -136,7 +137,7 @@ func main() {
 		sqsVehiclesClient = newSQSClient(ctx, cfg.AWSRegionVehicles, log)
 	}
 
-	eventPublisher := newEventPublisher(sqsVehiclesClient, cfg.SQSQueueVehiclesURL, log)
+	eventPublisher := newEventPublisher(sqsVehiclesClient, cfg.SQSQueueVehiclesURL, cfg.UseMockFallback, log)
 
 	// Business Logic Layer
 	correctiveSvc := service.NewCorrectiveMaintenanceService(maintenanceRepo, eventPublisher, log)
