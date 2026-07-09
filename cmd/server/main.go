@@ -156,9 +156,9 @@ func main() {
 	releaseWorker := handler.NewReleaseWorker(releaseSvc, log, cfg.ReleasePollIntervalSecs)
 
 	// Presentation Layer
-	maintenanceHandler := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, log)
+	maintenanceHandler := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, preventiveSvc, log)
 	healthHandler := handler.NewHealthHandler(pool)
-	router := handler.NewRouter(maintenanceHandler, healthHandler, log, cfg.MetricsEnabled, cfg.JWTPublicKey, cfg.JWTAlgorithm)
+	router := handler.NewRouter(maintenanceHandler, healthHandler, log, cfg.MetricsEnabled, cfg.JWTPublicKey, cfg.JWTAlgorithm, cfg.UseMockFallback)
 
 	// =========================================================================
 	// Start background services
