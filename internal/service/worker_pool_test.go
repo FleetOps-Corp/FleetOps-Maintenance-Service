@@ -20,7 +20,7 @@ import (
 func TestWorkerPool_StartAndStop(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	wp := service.NewWorkerPool(repo, 3, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 1, false, newTestLogger())
 
 	// Act — start and immediately stop, should not panic
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,7 +37,7 @@ func TestWorkerPool_StartAndStop(t *testing.T) {
 func TestWorkerPool_StopIsIdempotent(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	wp := service.NewWorkerPool(repo, 3, 60, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 60, false, newTestLogger())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -50,36 +50,56 @@ func TestWorkerPool_StopIsIdempotent(t *testing.T) {
 }
 
 func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
-	// Arrange
-	repo := new(mocks.MockMaintenanceRepository)
+	tests := []struct {
+		name             string
+		useMockFallback  bool
+		expectedStatus   domain.MaintenanceStatus
+		expectedTerminal bool
+	}{
+		{
+			name:             "Without fallback completes task immediately",
+			useMockFallback:  false,
+			expectedStatus:   domain.MaintenanceStatusCompleted,
+			expectedTerminal: true,
+		},
+		{
+			name:             "With fallback leaves task in progress",
+			useMockFallback:  true,
+			expectedStatus:   domain.MaintenanceStatusInProgress,
+			expectedTerminal: false,
+		},
+	}
 
-	vehicleID := "ABC-123"
-	m1, _ := domain.NewCorrectiveMaintenance(vehicleID, "INC-123", 5)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			repo := new(mocks.MockMaintenanceRepository)
+			vehicleID := "ABC-123"
+			m1, _ := domain.NewCorrectiveMaintenance(vehicleID, "INC-123", 5)
+			queued := []*domain.Maintenance{m1}
 
-	queued := []*domain.Maintenance{m1}
+			repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatus("queued")).
+				Return(queued, nil).Once()
+			repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatus("queued")).
+				Return([]*domain.Maintenance{}, nil)
+			repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
+				Return(nil)
 
-	// First call returns items, subsequent calls return empty
-	repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatus("queued")).
-		Return(queued, nil).Once()
-	repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatus("queued")).
-		Return([]*domain.Maintenance{}, nil)
+			// Act
+			wp := service.NewWorkerPool(repo, 2, 1, tt.useMockFallback, newTestLogger())
+			ctx, cancel := context.WithCancel(context.Background())
+			wp.Start(ctx)
 
-	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
-		Return(nil)
+			time.Sleep(2 * time.Second)
+			cancel()
+			wp.Stop()
 
-	// Act — use short poll interval to trigger quickly
-	wp := service.NewWorkerPool(repo, 2, 1, newTestLogger())
-	ctx, cancel := context.WithCancel(context.Background())
-	wp.Start(ctx)
-
-	// Wait for processing to complete
-	time.Sleep(2 * time.Second)
-	cancel()
-	wp.Stop()
-
-	// Assert — UpdateStatus should have been called (at least for in_progress and completed)
-	repo.AssertCalled(t, "UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance"))
-	assert.True(t, m1.IsTerminal(), "maintenance should be in terminal state")
+			// Assert
+			repo.AssertCalled(t, "UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance"))
+			assert.Equal(t, tt.expectedStatus, m1.Status)
+			assert.Equal(t, tt.expectedTerminal, m1.IsTerminal())
+		})
+	}
 }
 
 func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
@@ -99,7 +119,7 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil)
 	// Act — maxWorkers = 3, but 10 items; all should still be processed
-	wp := service.NewWorkerPool(repo, 3, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 1, false, newTestLogger())
 	ctx, cancel := context.WithCancel(context.Background())
 	wp.Start(ctx)
 

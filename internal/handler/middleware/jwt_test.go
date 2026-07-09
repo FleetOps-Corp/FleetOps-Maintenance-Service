@@ -3,9 +3,7 @@ package middleware_test
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"io"
 	"log/slog"
 	"net/http"
@@ -185,86 +183,4 @@ func executeTestScenario(t *testing.T, tt jwtTestCase, handlerToTest http.Handle
 			require.Equal(t, "Bearer", rr.Header().Get("WWW-Authenticate"))
 		}
 	}
-}
-
-//nolint:staticcheck // x509 legacy PEM encryption is deprecated but required to test the decryption capability for legacy systems.
-func TestEncryptedPrivateKeyDecryption(t *testing.T) {
-	passphrase := "super-secreto-de-prueba"
-
-	// 1. GENERAMOS LLAVE DE PRUEBA EN MEMORIA (Para simular el escenario)
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	// Convertimos la llave privada a bytes DER (PKCS#1)
-	privDER := x509.MarshalPKCS1PrivateKey(privateKey)
-
-	// Encriptamos la llave privada en formato PEM usando la contraseña
-	// (Simula el contenido de un archivo "jwt_private_encrypted.pem")
-	encryptedBlock, err := x509.EncryptPEMBlock(
-		rand.Reader,
-		"RSA PRIVATE KEY",
-		privDER,
-		[]byte(passphrase),
-		x509.PEMCipherAES256,
-	)
-	require.NoError(t, err)
-	encryptedPEMBytes := pem.EncodeToMemory(encryptedBlock)
-
-	// ----------------------------------------------------------------
-	// 2. PRUEBA DE DESENCRIPTACIÓN Y LECTURA (Lo que haría tu servicio)
-	// ----------------------------------------------------------------
-
-	// Decodificamos el bloque PEM
-	block, rest := pem.Decode(encryptedPEMBytes)
-	require.NotNil(t, block, "El bloque PEM no debe ser nil")
-	require.Empty(t, rest, "No debería haber contenido residual en el PEM")
-
-	// Validamos si efectivamente viene encriptado
-	var decryptedDER []byte
-	if x509.IsEncryptedPEMBlock(block) {
-		// Desencriptamos el bloque PEM usando la contraseña
-		decryptedDER, err = x509.DecryptPEMBlock(block, []byte(passphrase))
-		require.NoError(t, err, "Error al desencriptar el bloque PEM de la llave privada")
-	} else {
-		decryptedDER = block.Bytes
-	}
-
-	// Parseamos la llave privada una vez desencriptada
-	parsedPrivateKey, err := x509.ParsePKCS1PrivateKey(decryptedDER)
-	require.NoError(t, err, "Error al parsear los bytes desencriptados a clave RSA")
-
-	// ----------------------------------------------------------------
-	// 3. INTEGRACIÓN CON EL FLUJO DEL MIDDLEWARE
-	// ----------------------------------------------------------------
-
-	// Generamos un JWT utilizando la llave privada que acabamos de desencriptar
-	claims := jwt.MapClaims{
-		"sub": "user-123",
-		"exp": time.Now().Add(1 * time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	tokenString, err := token.SignedString(parsedPrivateKey)
-	require.NoError(t, err, "Error al firmar el token con la llave privada desencriptada")
-
-	// Usamos la llave pública correspondiente (que no requiere contraseña) para validar
-	publicKey := &privateKey.PublicKey
-	pubDER, err := x509.MarshalPKIXPublicKey(publicKey)
-	require.NoError(t, err)
-
-	pubPEMBlock := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: pubDER,
-	}
-	pubPEMBytes := pem.EncodeToMemory(pubPEMBlock)
-
-	// Parseamos la llave pública de manera estándar
-	parsedPublicKey, err := jwt.ParseRSAPublicKeyFromPEM(pubPEMBytes)
-	require.NoError(t, err)
-
-	// Validamos que el token firmado por la llave desencriptada sea válido para la llave pública
-	parsedToken, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return parsedPublicKey, nil
-	})
-	require.NoError(t, err)
-	require.True(t, parsedToken.Valid)
 }

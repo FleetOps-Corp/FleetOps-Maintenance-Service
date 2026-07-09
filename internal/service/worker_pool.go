@@ -18,12 +18,13 @@ import (
 // propagación de fallos entre tareas concurrentes"
 // Pattern: Bulkhead (Resilience), Worker Pool (Concurrency)
 type WorkerPool struct {
-	repo         port.MaintenanceRepository
-	maxWorkers   int
-	pollInterval time.Duration
-	logger       *slog.Logger
-	stopCh       chan struct{}
-	stopped      sync.Once
+	repo            port.MaintenanceRepository
+	maxWorkers      int
+	pollInterval    time.Duration
+	useMockFallback bool
+	logger          *slog.Logger
+	stopCh          chan struct{}
+	stopped         sync.Once
 }
 
 // NewWorkerPool constructs a WorkerPool with the given concurrency limit (Bulkhead).
@@ -34,14 +35,16 @@ func NewWorkerPool(
 	repo port.MaintenanceRepository,
 	maxWorkers int,
 	pollIntervalSecs int,
+	useMockFallback bool,
 	logger *slog.Logger,
 ) *WorkerPool {
 	return &WorkerPool{
-		repo:         repo,
-		maxWorkers:   maxWorkers,
-		pollInterval: time.Duration(pollIntervalSecs) * time.Second,
-		logger:       logger,
-		stopCh:       make(chan struct{}),
+		repo:            repo,
+		maxWorkers:      maxWorkers,
+		pollInterval:    time.Duration(pollIntervalSecs) * time.Second,
+		useMockFallback: useMockFallback,
+		logger:          logger,
+		stopCh:          make(chan struct{}),
 	}
 }
 
@@ -133,6 +136,14 @@ func (wp *WorkerPool) processMaintenance(ctx context.Context, m *domain.Maintena
 		slog.String("maintenance_id", m.ID.String()),
 		slog.String("type", string(m.Type)),
 	)
+
+	if wp.useMockFallback {
+		wp.logger.InfoContext(
+			ctx, "USE_MOCK_FALLBACK enabled: leaving maintenance in_progress. ReleaseService will finalize it after threshold",
+			slog.String("maintenance_id", m.ID.String()),
+		)
+		return
+	}
 
 	if err := wp.transitionToCompleted(ctx, m); err != nil {
 		metrics.Default().QueueErrorsTotal.Inc()

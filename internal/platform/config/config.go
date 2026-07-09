@@ -42,6 +42,7 @@ type Config struct {
 	VehiclesServiceURL    string
 	VehiclesAPIToken      string
 	HTTPClientTimeoutSecs int
+	UseMockFallback       bool
 
 	// Observability
 	MetricsEnabled bool
@@ -101,6 +102,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg.MetricsEnabled = getEnvOrDefault("METRICS_ENABLED", "true") == "true"
+	cfg.UseMockFallback = getEnvOrDefault("USE_MOCK_FALLBACK", "false") == "true"
 	cfg.SQSQueueIncidentsURL = os.Getenv("SQS_INCIDENTS_URL")
 	cfg.SQSQueueVehiclesURL = os.Getenv("SQS_VEHICLES_URL")
 	cfg.AWSRegionIncidents = getEnvOrDefault("AWS_REGION_INCIDENTS", "us-east-1")

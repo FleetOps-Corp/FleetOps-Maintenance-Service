@@ -142,7 +142,7 @@ func (r *PostgresMaintenanceRepository) ListOldUncompleted(ctx context.Context, 
 		SELECT id, vehicle_id, incident_id, type, severity, status, created_at, updated_at, completed_at
 		FROM maintenances
 		WHERE status NOT IN ('completed', 'failed')
-		AND created_at < NOW() - ($1 || ' minutes')::INTERVAL
+		AND created_at < NOW() - ($1 * INTERVAL '1 minute')
 		ORDER BY created_at ASC`
 
 	return r.queryMultiple(ctx, query, minutes)

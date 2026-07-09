@@ -43,13 +43,14 @@ func newSQSClient(ctx context.Context, region string, log *slog.Logger) *sqs.Cli
 func newEventPublisher(
 	client *sqs.Client,
 	queueURL string,
+	useMockFallback bool,
 	log *slog.Logger,
 ) port.EventPublisher {
 	if client == nil || queueURL == "" {
 		log.Warn("SQS_VEHICLES_URL is not set, using NOOP Event Publisher")
 		return &noopPublisher{log: log}
 	}
-	return messaging.NewSQSPublisher(client, queueURL, log)
+	return messaging.NewSQSPublisher(client, queueURL, useMockFallback, log)
 }
 
 func startIncidentConsumer(
@@ -123,7 +124,7 @@ func main() {
 
 	// Data Access Layer
 	maintenanceRepo := repository.NewPostgresMaintenanceRepository(pool)
-	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs, log)
+	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs, cfg.UseMockFallback, log)
 
 	// Messaging
 	var sqsIncidentsClient *sqs.Client
@@ -136,7 +137,7 @@ func main() {
 		sqsVehiclesClient = newSQSClient(ctx, cfg.AWSRegionVehicles, log)
 	}
 
-	eventPublisher := newEventPublisher(sqsVehiclesClient, cfg.SQSQueueVehiclesURL, log)
+	eventPublisher := newEventPublisher(sqsVehiclesClient, cfg.SQSQueueVehiclesURL, cfg.UseMockFallback, log)
 
 	// Business Logic Layer
 	correctiveSvc := service.NewCorrectiveMaintenanceService(maintenanceRepo, eventPublisher, log)
@@ -148,7 +149,7 @@ func main() {
 	queueSvc := service.NewQueueService(maintenanceRepo, eventPublisher, log)
 	workerPool := service.NewWorkerPool(
 		maintenanceRepo,
-		cfg.MaxWorkers, cfg.WorkerPollIntervalSecs, log,
+		cfg.MaxWorkers, cfg.WorkerPollIntervalSecs, cfg.UseMockFallback, log,
 	)
 
 	releaseSvc := service.NewReleaseService(maintenanceRepo, eventPublisher, log, cfg.ReleaseMinutesThreshold)
@@ -174,6 +175,23 @@ func main() {
 
 	stopConsumer := startIncidentConsumer(ctx, sqsIncidentsClient, cfg.SQSQueueIncidentsURL, correctiveSvc, log)
 	defer stopConsumer()
+
+	// USE_MOCK_FALLBACK: Auto-generate corrective maintenance event for testing
+	if cfg.UseMockFallback {
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("recovered from panic in auto-generate corrective goroutine", slog.Any("panic", r))
+				}
+			}()
+			time.Sleep(5 * time.Second)
+			log.Info("USE_MOCK_FALLBACK: Automatically generating a corrective maintenance event for testing")
+			_, err := correctiveSvc.CreateCorrective(ctx, "ABC-123", "INC-MOCK-999", 8)
+			if err != nil {
+				log.Error("failed to auto-generate corrective maintenance fallback", slog.String("error", err.Error()))
+			}
+		}()
+	}
 
 	// =========================================================================
 	// HTTP Server with graceful shutdown
