@@ -70,17 +70,31 @@ func main() {
 
 	// Messaging: Event Publisher
 	var eventPublisher port.EventPublisher
-	var sqsClient *sqs.Client
-	if cfg.SQSQueueURL != "" {
-		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegion))
+	var sqsIncidentsClient *sqs.Client
+	var sqsVehiclesClient *sqs.Client
+
+	if cfg.SQSQueueIncidentsURL != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegionIncidents))
 		if err != nil {
-			log.Error("failed to load AWS config for SQS", slog.String("error", err.Error()))
+			log.Error("failed to load AWS config for incidents SQS", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
-		sqsClient = sqs.NewFromConfig(awsCfg)
-		eventPublisher = messaging.NewSQSPublisher(sqsClient, cfg.SQSQueueURL, log)
+		sqsIncidentsClient = sqs.NewFromConfig(awsCfg)
+	}
+
+	if cfg.SQSQueueVehiclesURL != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegionVehicles))
+		if err != nil {
+			log.Error("failed to load AWS config for vehicles SQS", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		sqsVehiclesClient = sqs.NewFromConfig(awsCfg)
+	}
+
+	if sqsVehiclesClient != nil && cfg.SQSQueueVehiclesURL != "" {
+		eventPublisher = messaging.NewSQSPublisher(sqsVehiclesClient, cfg.SQSQueueVehiclesURL, log)
 	} else {
-		log.Warn("SQS_QUEUE_URL is not set, using NOOP Event Publisher")
+		log.Warn("SQS_VEHICLES_URL is not set, using NOOP Event Publisher")
 		eventPublisher = &noopPublisher{log: log}
 	}
 
@@ -127,8 +141,8 @@ func main() {
 	// =========================================================================
 	// Messaging: SQS Consumer
 	// =========================================================================
-	if sqsClient != nil {
-		sqsConsumer := messaging.NewSQSConsumer(sqsClient, cfg.SQSQueueURL, correctiveSvc, log)
+	if sqsIncidentsClient != nil && cfg.SQSQueueIncidentsURL != "" {
+		sqsConsumer := messaging.NewSQSConsumer(sqsIncidentsClient, cfg.SQSQueueIncidentsURL, correctiveSvc, log)
 		sqsConsumer.Start(ctx)
 		defer sqsConsumer.Stop()
 	}
