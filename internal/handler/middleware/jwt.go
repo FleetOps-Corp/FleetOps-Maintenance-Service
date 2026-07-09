@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 
@@ -62,6 +63,7 @@ func JWTAuth(publicKey *rsa.PublicKey, algorithm string, logger *slog.Logger) fu
 }
 
 // extractToken extracts the raw token string from the Authorization header.
+// It supports both "Bearer <token>" and raw "<token>" formats.
 func extractToken(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -69,21 +71,36 @@ func extractToken(r *http.Request) (string, error) {
 	}
 
 	fields := strings.Fields(authHeader)
-	if len(fields) != 2 || strings.ToLower(fields[0]) != "bearer" {
-		return "", errors.New("invalid authentication token format: expected Bearer token")
+	if len(fields) == 0 {
+		return "", nil
 	}
 
-	return fields[1], nil
+	// Format 1: "Bearer <token>"
+	if len(fields) == 2 && strings.ToLower(fields[0]) == "bearer" {
+		return fields[1], nil
+	}
+
+	// Format 2: Raw "<token>" (validate that it has 2 dots, representing header.payload.signature)
+	if len(fields) == 1 && strings.Count(fields[0], ".") == 2 {
+		return fields[0], nil
+	}
+
+	return "", errors.New("invalid authentication token format: expected Bearer token")
 }
 
 // parseAndValidateToken parses the token string, verifies its signature and algorithm, and returns the claims.
+// It uses a 5-minute clock leeway to avoid synchronization errors between services.
 func parseAndValidateToken(tokenStr string, publicKey *rsa.PublicKey, algorithm string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		// Verify that the signing method is asymmetric RSA
+		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
 		if t.Method.Alg() != algorithm {
 			return nil, fmt.Errorf("unexpected signing method algorithm: %v", t.Header["alg"])
 		}
 		return publicKey, nil
-	})
+	}, jwt.WithLeeway(5*time.Minute))
 	if err != nil {
 		return nil, err
 	}

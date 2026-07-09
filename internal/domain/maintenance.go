@@ -124,10 +124,10 @@ func NewPreventiveMaintenance(vehicleID string) (*Maintenance, error) {
 	}, nil
 }
 
-// MarkInProgress transitions the maintenance from queued to in_progress.
-// Only valid when current status is queued.
+// MarkInProgress transitions the maintenance to in_progress.
+// For academic demo purposes, this is valid from any non-terminal state.
 func (m *Maintenance) MarkInProgress() error {
-	if m.Status != MaintenanceStatusQueued {
+	if m.IsTerminal() {
 		return ErrInvalidStatusTransition
 	}
 	m.Status = MaintenanceStatusInProgress
@@ -135,10 +135,14 @@ func (m *Maintenance) MarkInProgress() error {
 	return nil
 }
 
-// MarkCompleted transitions the maintenance from in_progress to completed.
-// Only valid when current status is in_progress.
+// MarkCompleted transitions the maintenance to completed.
+// For academic demo purposes, this is valid from any non-terminal state.
+// Idempotent: If it's already completed, it returns nil to allow retrying event publishing.
 func (m *Maintenance) MarkCompleted() error {
-	if m.Status != MaintenanceStatusInProgress {
+	if m.Status == MaintenanceStatusCompleted {
+		return nil // Idempotency: Already completed, allow retry
+	}
+	if m.Status == MaintenanceStatusFailed {
 		return ErrInvalidStatusTransition
 	}
 	now := time.Now().UTC()
@@ -148,10 +152,10 @@ func (m *Maintenance) MarkCompleted() error {
 	return nil
 }
 
-// MarkFailed transitions the maintenance from in_progress to failed.
-// Only valid when current status is in_progress.
+// MarkFailed transitions the maintenance to failed.
+// For academic demo purposes, this is valid from any non-terminal state.
 func (m *Maintenance) MarkFailed() error {
-	if m.Status != MaintenanceStatusInProgress {
+	if m.IsTerminal() {
 		return ErrInvalidStatusTransition
 	}
 	m.Status = MaintenanceStatusFailed

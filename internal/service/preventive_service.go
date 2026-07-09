@@ -19,14 +19,15 @@ import (
 // Preventivos"
 // Pattern: Service Layer (PoEAA), Scheduled Task (Cron Handler)
 type PreventiveMaintenanceService struct {
-	repo          port.MaintenanceRepository
-	vehicleClient port.VehicleClient
-	kmThreshold   float64
-	daysThreshold int
-	intervalDays  int
-	logger        *slog.Logger
-	stopCh        chan struct{}
-	stopped       sync.Once
+	repo           port.MaintenanceRepository
+	vehicleClient  port.VehicleFetcher
+	eventPublisher port.EventPublisher
+	kmThresholdMap map[string]float64
+	daysThreshold  int
+	intervalMins   int
+	logger         *slog.Logger
+	stopCh         chan struct{}
+	stopped        sync.Once
 }
 
 // NewPreventiveMaintenanceService constructs a PreventiveMaintenanceService
@@ -35,20 +36,22 @@ type PreventiveMaintenanceService struct {
 // Pattern: Dependency Injection (ADR-7)
 func NewPreventiveMaintenanceService(
 	repo port.MaintenanceRepository,
-	vehicleClient port.VehicleClient,
-	kmThreshold float64,
+	vehicleClient port.VehicleFetcher,
+	eventPublisher port.EventPublisher,
+	kmThresholdMap map[string]float64,
 	daysThreshold int,
-	intervalDays int,
+	intervalMins int,
 	logger *slog.Logger,
 ) *PreventiveMaintenanceService {
 	return &PreventiveMaintenanceService{
-		repo:          repo,
-		vehicleClient: vehicleClient,
-		kmThreshold:   kmThreshold,
-		daysThreshold: daysThreshold,
-		intervalDays:  intervalDays,
-		logger:        logger,
-		stopCh:        make(chan struct{}),
+		repo:           repo,
+		vehicleClient:  vehicleClient,
+		eventPublisher: eventPublisher,
+		kmThresholdMap: kmThresholdMap,
+		daysThreshold:  daysThreshold,
+		intervalMins:   intervalMins,
+		logger:         logger,
+		stopCh:         make(chan struct{}),
 	}
 }
 
@@ -77,7 +80,7 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 	// Step 4: Filter vehicles based on thresholds
 	var created []*domain.Maintenance
 	for _, v := range vehicles {
-		if !v.NeedsPreventiveMaintenance(s.kmThreshold, s.daysThreshold) {
+		if !v.NeedsPreventiveMaintenance(s.kmThresholdMap, s.daysThreshold) {
 			continue
 		}
 
@@ -103,8 +106,13 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 			metrics.Default().MaintenanceErrorsTotal.WithLabelValues("persist_preventive").Inc()
 			continue
 		}
-
 		metrics.Default().MaintenanceCreatedTotal.WithLabelValues("preventive").Inc()
+
+		// Emit CREATED event to SQS
+		if err := s.eventPublisher.PublishMaintenanceEvent(ctx, m, "CREATED"); err != nil {
+			s.logger.WarnContext(ctx, "failed to publish CREATED event", slog.String("error", err.Error()))
+			// No bloquea la creación, ya se guardó en BD
+		}
 		created = append(created, m)
 	}
 
@@ -119,16 +127,15 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 
 // Start begins the periodic preventive maintenance scheduling loop.
 // It runs in a separate goroutine and executes SchedulePreventive every
-// intervalDays days.
+// intervalMins minutes.
 //
-// SAD Reference: "Cron Handler se ejecuta cada X días"
+// SAD Reference: "Cron Handler se ejecuta cada X minutos"
 func (s *PreventiveMaintenanceService) Start(ctx context.Context) {
-	interval := time.Duration(s.intervalDays) * 24 * time.Hour
-	ticker := time.NewTicker(interval)
+	ticker := time.NewTicker(time.Duration(s.intervalMins) * time.Minute)
 
 	s.logger.Info(
 		"preventive maintenance scheduler started",
-		slog.Int("interval_days", s.intervalDays),
+		slog.Int("interval_mins", s.intervalMins),
 	)
 
 	go func() {

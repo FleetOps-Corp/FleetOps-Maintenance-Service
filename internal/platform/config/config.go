@@ -11,12 +11,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config holds all externalized configuration for the maintenance microservice.
-// All values are loaded from environment variables following the Externalized
-// Configuration pattern.
+// Config holds the application's configuration settings.
 //
-// Pattern: Externalized Configuration
-// SAD Reference: ADR (Variabilidad) — "configuraciones en archivos de texto
+// SAD Reference: "Separation of Concerns" - ADR-X
+// "Centralizar la carga y validacion de variables de entorno para que sean
 // independientes de las clases que las ejecutan"
 type Config struct {
 	// Server
@@ -27,12 +25,18 @@ type Config struct {
 	DatabaseURL      string
 	DatabaseMaxConns int32
 
-	// Domain & Business Rules
-	MaxWorkers              int
-	WorkerPollIntervalSecs  int
-	CronIntervalDays        int
-	PreventiveKmThreshold   float64
+	// Worker Pool (Bulkhead)
+	MaxWorkers             int
+	WorkerPollIntervalSecs int
+
+	// Preventive Maintenance
+	CronIntervalMinutes     int
+	PreventiveKmThresholds  map[string]float64
 	PreventiveDaysThreshold int
+
+	// Release Worker
+	ReleaseMinutesThreshold int
+	ReleasePollIntervalSecs int
 
 	// Integration Clients
 	VehiclesServiceURL    string
@@ -70,10 +74,25 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	cfg.VehiclesServiceURL = getEnvOrDefault("VEHICLES_SERVICE_URL", "http://api-gateway:8000")
-	cfg.VehiclesAPIToken = getEnvOrDefault("VEHICLES_API_TOKEN", "")
-
+	// Release Configuration
 	var err error
+	cfg.ReleaseMinutesThreshold, err = getEnvAsInt("RELEASE_MINUTES_THRESHOLD", 10)
+	if err != nil {
+		return nil, fmt.Errorf("RELEASE_MINUTES_THRESHOLD: %w", err)
+	}
+
+	cfg.ReleasePollIntervalSecs, err = getEnvAsInt("RELEASE_POLL_INTERVAL_SECONDS", 60)
+	if err != nil {
+		return nil, fmt.Errorf("RELEASE_POLL_INTERVAL_SECONDS: %w", err)
+	}
+	if cfg.ReleasePollIntervalSecs <= 0 {
+		return nil, fmt.Errorf("RELEASE_POLL_INTERVAL_SECONDS must be > 0")
+	}
+
+	// External Services Configuration
+	cfg.VehiclesServiceURL = getEnvOrDefault("VEHICLES_SERVICE_URL", "http://localhost:8081")
+	cfg.VehiclesAPIToken = os.Getenv("VEHICLES_API_TOKEN")
+
 	cfg.HTTPClientTimeoutSecs, err = getEnvAsInt("HTTP_CLIENT_TIMEOUT_SECONDS", 10)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP_CLIENT_TIMEOUT_SECONDS: %w", err)
@@ -122,16 +141,29 @@ func loadThresholdConfig(cfg *Config) error {
 		return fmt.Errorf("WORKER_POLL_INTERVAL_SECONDS: %w", err)
 	}
 
-	cfg.CronIntervalDays, err = getEnvAsInt("CRON_INTERVAL_DAYS", 7)
+	cfg.CronIntervalMinutes, err = getEnvAsInt("CRON_INTERVAL_MINUTES", 1)
 	if err != nil {
-		return fmt.Errorf("CRON_INTERVAL_DAYS: %w", err)
+		return fmt.Errorf("CRON_INTERVAL_MINUTES: %w", err)
 	}
 
-	kmThresh, err := getEnvAsFloat("PREVENTIVE_KM_THRESHOLD", 10000)
+	autoThresh, err := getEnvAsFloat("KM_THRESHOLD_AUTOMOVIL", 10000)
 	if err != nil {
-		return fmt.Errorf("PREVENTIVE_KM_THRESHOLD: %w", err)
+		return fmt.Errorf("KM_THRESHOLD_AUTOMOVIL: %w", err)
 	}
-	cfg.PreventiveKmThreshold = kmThresh
+	camThresh, err := getEnvAsFloat("KM_THRESHOLD_CAMIONETA", 12000)
+	if err != nil {
+		return fmt.Errorf("KM_THRESHOLD_CAMIONETA: %w", err)
+	}
+	espThresh, err := getEnvAsFloat("KM_THRESHOLD_VEHICULO_ESPECIALIZADO", 15000)
+	if err != nil {
+		return fmt.Errorf("KM_THRESHOLD_VEHICULO_ESPECIALIZADO: %w", err)
+	}
+
+	cfg.PreventiveKmThresholds = map[string]float64{
+		"Automovil":              autoThresh,
+		"Camioneta":              camThresh,
+		"Vehiculo_especializado": espThresh,
+	}
 
 	cfg.PreventiveDaysThreshold, err = getEnvAsInt("PREVENTIVE_DAYS_THRESHOLD", 90)
 	if err != nil {
@@ -145,13 +177,12 @@ func loadJWTConfig(cfg *Config) error {
 	cfg.JWTAlgorithm = getEnvOrDefault("JWT_ALGORITHM", "RS256")
 	cfg.JWTPublicKeyPath = getEnvOrDefault("JWT_PUBLIC_KEY_PATH", "/run/secrets/jwt_public.pem")
 
-	// Validate algorithm up-front (only RSA asymmetric signing algorithms are supported for public key verification)
+	// Validate algorithm up-front
 	if cfg.JWTAlgorithm != "RS256" && cfg.JWTAlgorithm != "RS384" && cfg.JWTAlgorithm != "RS512" {
 		return fmt.Errorf("invalid JWT_ALGORITHM %q: only RS256, RS384, and RS512 are supported for public key signature verification", cfg.JWTAlgorithm)
 	}
 
 	path := cfg.JWTPublicKeyPath
-	// Fallback for local development if running outside container
 	if _, err := os.Stat(path); os.IsNotExist(err) && path == "/run/secrets/jwt_public.pem" {
 		localFallback := "./secrets/jwt_public.pem"
 		if _, errSub := os.Stat(localFallback); errSub == nil {

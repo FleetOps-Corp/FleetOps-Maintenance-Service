@@ -1,10 +1,10 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -12,10 +12,10 @@ import (
 	"github.com/fleetops/maintenance/internal/port"
 )
 
-// Compile-time check: HTTPVehicleClient implements port.VehicleClient.
-var _ port.VehicleClient = (*HTTPVehicleClient)(nil)
+// Compile-time check: HTTPVehicleClient implements port.VehicleFetcher.
+var _ port.VehicleFetcher = (*HTTPVehicleClient)(nil)
 
-// HTTPVehicleClient is the concrete implementation of port.VehicleClient
+// HTTPVehicleClient is the concrete implementation of port.VehicleFetcher
 // that communicates with the external Vehicles microservice via REST/HTTP.
 //
 // This adapter implements the Anti-Corruption Layer (ACL), translating
@@ -27,17 +27,29 @@ type HTTPVehicleClient struct {
 	baseURL    string
 	token      string
 	httpClient *http.Client
+	log        *slog.Logger
 }
 
 // NewHTTPVehicleClient constructs an HTTPVehicleClient.
-func NewHTTPVehicleClient(baseURL, token string, timeoutSecs int) *HTTPVehicleClient {
+func NewHTTPVehicleClient(baseURL, token string, timeoutSecs int, log *slog.Logger) *HTTPVehicleClient {
 	return &HTTPVehicleClient{
 		baseURL: baseURL,
 		token:   token,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSecs) * time.Second,
 		},
+		log: log,
 	}
+}
+
+func parseDateSafe(dateStr string) (time.Time, error) {
+	if parsed, err := time.Parse("2006-01-02", dateStr); err == nil {
+		return parsed, nil
+	}
+	if parsed, err := time.Parse(time.RFC3339, dateStr); err == nil {
+		return parsed, nil
+	}
+	return time.Time{}, fmt.Errorf("invalid date format")
 }
 
 // externalVehicle represents the JSON structure returned by the external
@@ -45,6 +57,8 @@ func NewHTTPVehicleClient(baseURL, token string, timeoutSecs int) *HTTPVehicleCl
 type externalVehicle struct {
 	IdVehiculo      string  `json:"idVehiculo"`
 	NumeroPlaca     string  `json:"numeroPlaca"`
+	TipoVehiculo    string  `json:"nombreTipoVehiculo"`
+	CreadoEn        string  `json:"creadoEn"`
 	Kilometraje     float64 `json:"kilometraje"`
 	FechaUltimoMant string  `json:"fechaUltimoMant"`
 	EstadoVehiculo  string  `json:"estadoVehiculo"`
@@ -91,70 +105,47 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 		if ev.IdVehiculo == "" {
 			continue // skip vehicles with invalid IDs
 		}
-
-		// Calculate days since last maintenance
-		daysSince := 0
-		if ev.FechaUltimoMant != "" {
-			parsedDate, err := time.Parse("2006-01-02", ev.FechaUltimoMant)
-			if err == nil {
-				duration := time.Since(parsedDate)
-				daysSince = int(duration.Hours() / 24)
-			}
-		}
-
-		// isAvailable := ev.EstadoVehiculo == "DISPONIBLE" && ev.Activo // If strictly available
-
-		vehicles = append(vehicles, &domain.Vehicle{
-			ID:                       ev.NumeroPlaca, // The rest of our system treats VehicleID as the Placa
-			LicensePlate:             ev.NumeroPlaca,
-			KilometersRecorded:       ev.Kilometraje,
-			DaysSinceLastMaintenance: daysSince,
-			Available:                ev.EstadoVehiculo == "DISPONIBLE", // Map ENUM to our boolean
-		})
+		vehicles = append(vehicles, c.mapVehicle(ctx, ev))
 	}
 
 	return vehicles, nil
 }
 
-type vehicleUpdatePayload struct {
-	NuevoEstado    string `json:"nuevoEstado"`
-	MotivoCambio   string `json:"motivoCambio"`
-	ServicioOrigen string `json:"servicioOrigen"`
-}
-
-// SAD Reference: "PATCH a /vehículos/{id}/estado — actualiza estado a EN_MANTENIMIENTO"
-func (c *HTTPVehicleClient) UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID string) error {
-	payload := vehicleUpdatePayload{
-		NuevoEstado:    "EN_MANTENIMIENTO",
-		MotivoCambio:   "reparacion del motor",
-		ServicioOrigen: "microservicio-mantenimientos",
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshaling vehicle update payload: %w", err)
+func (c *HTTPVehicleClient) mapVehicle(ctx context.Context, ev externalVehicle) *domain.Vehicle {
+	var createdAt time.Time
+	if ev.CreadoEn != "" {
+		if parsed, err := parseDateSafe(ev.CreadoEn); err == nil {
+			createdAt = parsed
+		}
 	}
 
-	// The team provided /vehiculos/placa/{placa}/estado, but we only have the VehicleID (UUID)
-	// at this point in the worker pool. We will send the UUID and see if their backend accepts it.
-	url := fmt.Sprintf("%s/vehiculos/placa/%s/estado", c.baseURL, vehicleID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("creating vehicle update request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("executing vehicle update request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("vehicle service returned status %d on update", resp.StatusCode)
+	daysSince := 0
+	if ev.FechaUltimoMant != "" {
+		if parsedDate, err := parseDateSafe(ev.FechaUltimoMant); err == nil {
+			daysSince = int(time.Since(parsedDate).Hours() / 24)
+		} else {
+			c.log.WarnContext(
+				ctx, "fecha de mantenimiento invalida, asumiendo 0 dias",
+				slog.String("placa", ev.NumeroPlaca),
+				slog.String("fecha", ev.FechaUltimoMant),
+			)
+		}
+	} else if !createdAt.IsZero() {
+		daysSince = int(time.Since(createdAt).Hours() / 24)
+	} else {
+		c.log.WarnContext(
+			ctx, "sin fechas validas para obtener dias, asumiendo 0",
+			slog.String("placa", ev.NumeroPlaca),
+		)
 	}
 
-	return nil
+	return &domain.Vehicle{
+		ID:                       ev.NumeroPlaca,
+		LicensePlate:             ev.NumeroPlaca,
+		VehicleType:              ev.TipoVehiculo,
+		CreatedAt:                createdAt,
+		KilometersRecorded:       ev.Kilometraje,
+		DaysSinceLastMaintenance: daysSince,
+		Available:                ev.EstadoVehiculo == "DISPONIBLE" && ev.Activo,
+	}
 }

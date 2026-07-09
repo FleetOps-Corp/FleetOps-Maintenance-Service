@@ -34,4 +34,8 @@ type MaintenanceRepository interface {
 	// UpdateStatus persists status changes (and related fields like CompletedAt)
 	// for an existing maintenance record.
 	UpdateStatus(ctx context.Context, maintenance *domain.Maintenance) error
+
+	// ListOldUncompleted retrieves maintenance records that are not in a terminal state
+	// and were created more than the specified number of minutes ago.
+	ListOldUncompleted(ctx context.Context, minutes int) ([]*domain.Maintenance, error)
 }
