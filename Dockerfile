@@ -21,8 +21,7 @@ RUN go mod download
 COPY . .
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o /build/maintenance-service ./cmd/server
+RUN go build -o /build/maintenance-service ./cmd/server
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime

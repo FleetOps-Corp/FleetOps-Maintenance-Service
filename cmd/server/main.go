@@ -31,6 +31,64 @@ import (
 	"github.com/fleetops/maintenance/internal/service"
 )
 
+func newSQSClient(ctx context.Context, region string, log *slog.Logger) *sqs.Client {
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
+	if err != nil {
+		log.Error("failed to load AWS config for SQS", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	return sqs.NewFromConfig(awsCfg)
+}
+
+func newEventPublisher(
+	client *sqs.Client,
+	queueURL string,
+	log *slog.Logger,
+) port.EventPublisher {
+	if client == nil || queueURL == "" {
+		log.Warn("SQS_VEHICLES_URL is not set, using NOOP Event Publisher")
+		return &noopPublisher{log: log}
+	}
+	return messaging.NewSQSPublisher(client, queueURL, log)
+}
+
+func startIncidentConsumer(
+	ctx context.Context,
+	client *sqs.Client,
+	queueURL string,
+	svc *service.CorrectiveMaintenanceService,
+	log *slog.Logger,
+) func() {
+	if client == nil || queueURL == "" {
+		return func() {
+			// No-op: SQS Consumer is disabled because SQS Incidents URL is not set.
+		}
+	}
+	consumer := messaging.NewSQSConsumer(client, queueURL, svc, log)
+	consumer.Start(ctx)
+	return consumer.Stop
+}
+
+func runServer(server *http.Server, log *slog.Logger) {
+	go func() {
+		log.Info("HTTP server listening", slog.String("addr", server.Addr))
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("HTTP server error", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+	}()
+}
+
+func shutdown(server *http.Server, log *slog.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Error("server forced shutdown", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+}
+
 func main() {
 	// Load configuration from environment variables
 	cfg, err := config.Load()
@@ -61,30 +119,26 @@ func main() {
 
 	// =========================================================================
 	// Dependency Injection — Composition Root
-	// Wire: Adapters → Ports ← Services → Handlers
 	// =========================================================================
 
-	// Data Access Layer: Adapters (implement Port interfaces)
+	// Data Access Layer
 	maintenanceRepo := repository.NewPostgresMaintenanceRepository(pool)
 	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs, log)
 
-	// Messaging: Event Publisher
-	var eventPublisher port.EventPublisher
-	var sqsClient *sqs.Client
-	if cfg.SQSQueueURL != "" {
-		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegion))
-		if err != nil {
-			log.Error("failed to load AWS config for SQS", slog.String("error", err.Error()))
-			os.Exit(1)
-		}
-		sqsClient = sqs.NewFromConfig(awsCfg)
-		eventPublisher = messaging.NewSQSPublisher(sqsClient, cfg.SQSQueueURL, log)
-	} else {
-		log.Warn("SQS_QUEUE_URL is not set, using NOOP Event Publisher")
-		eventPublisher = &noopPublisher{log: log}
+	// Messaging
+	var sqsIncidentsClient *sqs.Client
+	if cfg.SQSQueueIncidentsURL != "" {
+		sqsIncidentsClient = newSQSClient(ctx, cfg.AWSRegionIncidents, log)
 	}
 
-	// Business Logic Layer: Services (depend on Port interfaces)
+	var sqsVehiclesClient *sqs.Client
+	if cfg.SQSQueueVehiclesURL != "" {
+		sqsVehiclesClient = newSQSClient(ctx, cfg.AWSRegionVehicles, log)
+	}
+
+	eventPublisher := newEventPublisher(sqsVehiclesClient, cfg.SQSQueueVehiclesURL, log)
+
+	// Business Logic Layer
 	correctiveSvc := service.NewCorrectiveMaintenanceService(maintenanceRepo, eventPublisher, log)
 	preventiveSvc := service.NewPreventiveMaintenanceService(
 		maintenanceRepo, vehicleClient, eventPublisher,
@@ -97,41 +151,29 @@ func main() {
 		cfg.MaxWorkers, cfg.WorkerPollIntervalSecs, log,
 	)
 
-	// Release Worker
 	releaseSvc := service.NewReleaseService(maintenanceRepo, eventPublisher, log, cfg.ReleaseMinutesThreshold)
 	releaseWorker := handler.NewReleaseWorker(releaseSvc, log, cfg.ReleasePollIntervalSecs)
 
-	// Presentation Layer: Handlers (depend on Services)
+	// Presentation Layer
 	maintenanceHandler := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, log)
 	healthHandler := handler.NewHealthHandler(pool)
-
-	// Router
 	router := handler.NewRouter(maintenanceHandler, healthHandler, log, cfg.MetricsEnabled, cfg.JWTPublicKey, cfg.JWTAlgorithm)
 
 	// =========================================================================
 	// Start background services
 	// =========================================================================
 
-	// Start preventive maintenance scheduler (Cron Handler)
 	preventiveSvc.Start(ctx)
 	defer preventiveSvc.Stop()
 
-	// Start worker pool (Bulkhead pattern)
 	workerPool.Start(ctx)
 	defer workerPool.Stop()
 
-	// Start Release Worker (Automated Lifecycle)
 	releaseWorker.Start(ctx)
 	defer releaseWorker.Stop()
 
-	// =========================================================================
-	// Messaging: SQS Consumer
-	// =========================================================================
-	if sqsClient != nil {
-		sqsConsumer := messaging.NewSQSConsumer(sqsClient, cfg.SQSQueueURL, correctiveSvc, log)
-		sqsConsumer.Start(ctx)
-		defer sqsConsumer.Stop()
-	}
+	stopConsumer := startIncidentConsumer(ctx, sqsIncidentsClient, cfg.SQSQueueIncidentsURL, correctiveSvc, log)
+	defer stopConsumer()
 
 	// =========================================================================
 	// HTTP Server with graceful shutdown
@@ -145,28 +187,15 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	runServer(server, log)
+
 	// Graceful shutdown on SIGINT/SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		log.Info("HTTP server listening", slog.String("addr", server.Addr))
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error("HTTP server error", slog.String("error", err.Error()))
-			os.Exit(1)
-		}
-	}()
-
 	<-quit
+
 	log.Info("shutdown signal received, draining connections...")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Error("server forced shutdown", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
+	shutdown(server, log)
 
 	log.Info("FleetOps Maintenance Microservice stopped gracefully")
 }

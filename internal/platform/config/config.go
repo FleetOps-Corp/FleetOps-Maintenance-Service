@@ -47,8 +47,10 @@ type Config struct {
 	MetricsEnabled bool
 
 	// Messaging
-	SQSQueueURL string
-	AWSRegion   string
+	AWSRegionIncidents   string
+	AWSRegionVehicles    string
+	SQSQueueIncidentsURL string
+	SQSQueueVehiclesURL  string
 
 	// JWT Authentication
 	JWTAlgorithm     string
@@ -99,8 +101,10 @@ func Load() (*Config, error) {
 	}
 
 	cfg.MetricsEnabled = getEnvOrDefault("METRICS_ENABLED", "true") == "true"
-	cfg.SQSQueueURL = os.Getenv("SQS_QUEUE_URL")
-	cfg.AWSRegion = getEnvOrDefault("AWS_REGION", "us-east-1")
+	cfg.SQSQueueIncidentsURL = os.Getenv("SQS_INCIDENTS_URL")
+	cfg.SQSQueueVehiclesURL = os.Getenv("SQS_VEHICLES_URL")
+	cfg.AWSRegionIncidents = getEnvOrDefault("AWS_REGION_INCIDENTS", "us-east-1")
+	cfg.AWSRegionVehicles = getEnvOrDefault("AWS_REGION_VEHICLES", "us-east-1")
 
 	if err := loadJWTConfig(cfg); err != nil {
 		return nil, err
