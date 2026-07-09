@@ -187,6 +187,7 @@ func executeTestScenario(t *testing.T, tt jwtTestCase, handlerToTest http.Handle
 	}
 }
 
+//nolint:staticcheck // x509 legacy PEM encryption is deprecated but required to test the decryption capability for legacy systems.
 func TestEncryptedPrivateKeyDecryption(t *testing.T) {
 	passphrase := "super-secreto-de-prueba"
 
@@ -212,7 +213,7 @@ func TestEncryptedPrivateKeyDecryption(t *testing.T) {
 	// ----------------------------------------------------------------
 	// 2. PRUEBA DE DESENCRIPTACIÓN Y LECTURA (Lo que haría tu servicio)
 	// ----------------------------------------------------------------
-	
+
 	// Decodificamos el bloque PEM
 	block, rest := pem.Decode(encryptedPEMBytes)
 	require.NotNil(t, block, "El bloque PEM no debe ser nil")
@@ -235,7 +236,7 @@ func TestEncryptedPrivateKeyDecryption(t *testing.T) {
 	// ----------------------------------------------------------------
 	// 3. INTEGRACIÓN CON EL FLUJO DEL MIDDLEWARE
 	// ----------------------------------------------------------------
-	
+
 	// Generamos un JWT utilizando la llave privada que acabamos de desencriptar
 	claims := jwt.MapClaims{
 		"sub": "user-123",

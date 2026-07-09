@@ -37,7 +37,7 @@ func NewRouter(
 
 	// Global middleware
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.RealIP) //nolint:staticcheck // RealIP is deprecated but used in the pre-existing codebase structure
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
 
