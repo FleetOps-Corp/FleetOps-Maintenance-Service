@@ -36,6 +36,7 @@ func TestSchedulePreventive_Success_FiltersAndCreates(t *testing.T) {
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
+	repo.On("ListByStatus", mock.Anything, mock.Anything).Return([]*domain.Maintenance{}, nil)
 	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).Return(nil)
 	publisher.On("PublishMaintenanceEvent", mock.Anything, mock.AnythingOfType("*domain.Maintenance"), "CREATED").Return(nil)
 
@@ -68,6 +69,7 @@ func TestSchedulePreventive_NoVehiclesQualify(t *testing.T) {
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
+	repo.On("ListByStatus", mock.Anything, mock.Anything).Return([]*domain.Maintenance{}, nil)
 
 	// Act
 	created, err := svc.SchedulePreventive(context.Background())
@@ -115,6 +117,7 @@ func TestSchedulePreventive_RepositoryError_ContinuesProcessing(t *testing.T) {
 	}
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
+	repo.On("ListByStatus", mock.Anything, mock.Anything).Return([]*domain.Maintenance{}, nil)
 	// First call fails, second succeeds
 	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(errors.New("db error")).Once()
@@ -142,6 +145,7 @@ func TestSchedulePreventive_EmptyVehicleList(t *testing.T) {
 	)
 
 	vehicleClient.On("GetAllVehicles", mock.Anything).Return([]*domain.Vehicle{}, nil)
+	repo.On("ListByStatus", mock.Anything, mock.Anything).Return([]*domain.Maintenance{}, nil)
 
 	// Act
 	created, err := svc.SchedulePreventive(context.Background())
@@ -149,4 +153,41 @@ func TestSchedulePreventive_EmptyVehicleList(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	assert.Empty(t, created)
+}
+
+func TestSchedulePreventive_SkipsActiveVehicles(t *testing.T) {
+	// Arrange
+	repo := new(mocks.MockMaintenanceRepository)
+	vehicleClient := new(mocks.MockVehicleFetcher)
+	publisher := new(mocks.MockEventPublisher)
+	kmThresholds := map[string]float64{"Automovil": 10000.0}
+	svc := service.NewPreventiveMaintenanceService(
+		repo, vehicleClient, publisher, kmThresholds, 90, 7, newTestLogger(),
+	)
+
+	vehicles := []*domain.Vehicle{
+		{ID: "V1", VehicleType: "Automovil", KilometersRecorded: 15000, DaysSinceLastMaintenance: 30, Available: true}, // qualifies, but is queued
+		{ID: "V2", VehicleType: "Automovil", KilometersRecorded: 20000, DaysSinceLastMaintenance: 30, Available: true}, // qualifies, but is in progress
+		{ID: "V3", VehicleType: "Automovil", KilometersRecorded: 25000, DaysSinceLastMaintenance: 30, Available: true}, // qualifies and is free
+	}
+
+	vehicleClient.On("GetAllVehicles", mock.Anything).Return(vehicles, nil)
+
+	// Mock active vehicles: V1 is queued, V2 is in_progress
+	mQueued, _ := domain.NewPreventiveMaintenance("V1")
+	mInProgress, _ := domain.NewPreventiveMaintenance("V2")
+
+	repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatusQueued).Return([]*domain.Maintenance{mQueued}, nil)
+	repo.On("ListByStatus", mock.Anything, domain.MaintenanceStatusInProgress).Return([]*domain.Maintenance{mInProgress}, nil)
+
+	repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).Return(nil)
+	publisher.On("PublishMaintenanceEvent", mock.Anything, mock.AnythingOfType("*domain.Maintenance"), "CREATED").Return(nil)
+
+	// Act
+	created, err := svc.SchedulePreventive(context.Background())
+
+	// Assert
+	require.NoError(t, err)
+	assert.Len(t, created, 1) // Only V3 should be scheduled
+	assert.Equal(t, "V3", created[0].VehicleID)
 }

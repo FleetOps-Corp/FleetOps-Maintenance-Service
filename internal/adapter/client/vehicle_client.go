@@ -71,6 +71,14 @@ type vehiclesResponse struct {
 	Content []externalVehicle `json:"content"`
 }
 
+func (c *HTTPVehicleClient) fallbackOrError(ctx context.Context, err error, msg string) ([]*domain.Vehicle, error) {
+	if c.useMockFallback {
+		c.log.WarnContext(ctx, msg, slog.String("error", err.Error()))
+		return c.getMockVehicles(), nil
+	}
+	return nil, err
+}
+
 // GetAllVehicles fetches all vehicles from the Vehicles microservice and
 // translates them into domain.Vehicle value objects.
 //
@@ -79,11 +87,7 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 	url := fmt.Sprintf("%s/vehiculos/disponibles", c.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		if c.useMockFallback {
-			c.log.WarnContext(ctx, "failed to create vehicle list request, returning mock vehicles (fallback)", slog.String("error", err.Error()))
-			return c.getMockVehicles(), nil
-		}
-		return nil, fmt.Errorf("creating vehicle list request: %w", err)
+		return c.fallbackOrError(ctx, fmt.Errorf("creating vehicle list request: %w", err), "failed to create vehicle list request, returning mock vehicles (fallback)")
 	}
 	req.Header.Set("Accept", "application/json")
 	if c.token != "" {
@@ -92,38 +96,26 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		if c.useMockFallback {
-			c.log.WarnContext(ctx, "failed to execute vehicle list request, returning mock vehicles (fallback)", slog.String("error", err.Error()))
-			return c.getMockVehicles(), nil
-		}
-		return nil, fmt.Errorf("executing vehicle list request: %w", err)
+		return c.fallbackOrError(ctx, fmt.Errorf("executing vehicle list request: %w", err), "failed to execute vehicle list request, returning mock vehicles (fallback)")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		if c.useMockFallback {
-			c.log.WarnContext(ctx, "vehicle service returned non-200 status, returning mock vehicles (fallback)", slog.Int("status", resp.StatusCode))
-			return c.getMockVehicles(), nil
-		}
-		return nil, fmt.Errorf("vehicle service returned status %d", resp.StatusCode)
+		errStatus := fmt.Errorf("vehicle service returned status %d", resp.StatusCode)
+		return c.fallbackOrError(ctx, errStatus, "vehicle service returned non-200 status, returning mock vehicles (fallback)")
 	}
 
 	var wrapper vehiclesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
-		if c.useMockFallback {
-			c.log.WarnContext(ctx, "failed to decode vehicle list response, returning mock vehicles (fallback)", slog.String("error", err.Error()))
-			return c.getMockVehicles(), nil
-		}
-		return nil, fmt.Errorf("decoding vehicle list response: %w", err)
+		return c.fallbackOrError(ctx, fmt.Errorf("decoding vehicle list response: %w", err), "failed to decode vehicle list response, returning mock vehicles (fallback)")
 	}
 
 	// ACL Translation: convert external models to domain models
 	vehicles := make([]*domain.Vehicle, 0, len(wrapper.Content))
 	for _, ev := range wrapper.Content {
-		if ev.IdVehiculo == "" {
-			continue // skip vehicles with invalid IDs
+		if ev.IdVehiculo != "" {
+			vehicles = append(vehicles, c.mapVehicle(ctx, ev))
 		}
-		vehicles = append(vehicles, c.mapVehicle(ctx, ev))
 	}
 
 	return vehicles, nil

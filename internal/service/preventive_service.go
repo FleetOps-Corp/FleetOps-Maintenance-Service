@@ -77,9 +77,27 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 		slog.Int("total_vehicles", len(vehicles)),
 	)
 
+	// Build a map of vehicles currently in active maintenance (queued or in progress)
+	activeVehicles := make(map[string]bool)
+	queuedList, err := s.repo.ListByStatus(ctx, domain.MaintenanceStatusQueued)
+	if err == nil {
+		for _, m := range queuedList {
+			activeVehicles[m.VehicleID] = true
+		}
+	}
+	inProgressList, err := s.repo.ListByStatus(ctx, domain.MaintenanceStatusInProgress)
+	if err == nil {
+		for _, m := range inProgressList {
+			activeVehicles[m.VehicleID] = true
+		}
+	}
+
 	// Step 4: Filter vehicles based on thresholds
 	var created []*domain.Maintenance
 	for _, v := range vehicles {
+		if activeVehicles[v.ID] {
+			continue // Skip vehicles already in queued or in progress maintenance
+		}
 		if !v.NeedsPreventiveMaintenance(s.kmThresholdMap, s.daysThreshold) {
 			continue
 		}
