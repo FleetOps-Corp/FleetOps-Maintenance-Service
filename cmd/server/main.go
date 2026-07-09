@@ -179,9 +179,14 @@ func main() {
 	// USE_MOCK_FALLBACK: Auto-generate corrective maintenance event for testing
 	if cfg.UseMockFallback {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("recovered from panic in auto-generate corrective goroutine", slog.Any("panic", r))
+				}
+			}()
 			time.Sleep(5 * time.Second)
 			log.Info("USE_MOCK_FALLBACK: Automatically generating a corrective maintenance event for testing")
-			_, err := correctiveSvc.CreateCorrective(context.Background(), "ABC-123", "INC-MOCK-999", 8)
+			_, err := correctiveSvc.CreateCorrective(ctx, "ABC-123", "INC-MOCK-999", 8)
 			if err != nil {
 				log.Error("failed to auto-generate corrective maintenance fallback", slog.String("error", err.Error()))
 			}
