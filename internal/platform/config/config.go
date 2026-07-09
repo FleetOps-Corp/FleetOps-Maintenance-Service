@@ -85,6 +85,9 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("RELEASE_POLL_INTERVAL_SECONDS: %w", err)
 	}
+	if cfg.ReleasePollIntervalSecs <= 0 {
+		return nil, fmt.Errorf("RELEASE_POLL_INTERVAL_SECONDS must be > 0")
+	}
 
 	// External Services Configuration
 	cfg.VehiclesServiceURL = getEnvOrDefault("VEHICLES_SERVICE_URL", "http://localhost:8081")
@@ -176,7 +179,7 @@ func loadJWTConfig(cfg *Config) error {
 
 	// Validate algorithm up-front
 	if cfg.JWTAlgorithm != "RS256" && cfg.JWTAlgorithm != "RS384" && cfg.JWTAlgorithm != "RS512" {
-		return fmt.Errorf("invalid JWT_ALGORITHM %q", cfg.JWTAlgorithm)
+		return fmt.Errorf("invalid JWT_ALGORITHM %q: only RS256, RS384, and RS512 are supported for public key signature verification", cfg.JWTAlgorithm)
 	}
 
 	path := cfg.JWTPublicKeyPath
@@ -188,7 +191,7 @@ func loadJWTConfig(cfg *Config) error {
 	}
 	keyBytes, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read JWT public key: %w", err)
+		return fmt.Errorf("failed to read JWT public key file from path %q (resolved: %q): %w", cfg.JWTPublicKeyPath, path, err)
 	}
 	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(keyBytes)
 	if err != nil {

@@ -39,7 +39,12 @@ func (w *ReleaseWorker) Start(ctx context.Context) {
 
 // Stop gracefully shuts down the worker, waiting for the current cycle to finish.
 func (w *ReleaseWorker) Stop() {
-	close(w.quit)
+	select {
+	case <-w.quit:
+		// already stopped
+	default:
+		close(w.quit)
+	}
 	w.wg.Wait()
 }
 

@@ -54,16 +54,16 @@ func (s *ReleaseService) ReleaseOldMaintenances(ctx context.Context) error {
 			continue
 		}
 
-		// Save status to DB
-		if err := s.repo.UpdateStatus(ctx, m); err != nil {
-			s.logger.WarnContext(ctx, "failed to update maintenance status in db", slog.String("id", m.ID.String()), slog.String("error", err.Error()))
+		// Publish event to SQS FIRST
+		// If this fails, we skip DB update so it can be retried on next poll
+		if err := s.eventPublisher.PublishMaintenanceEvent(ctx, m, "COMPLETED"); err != nil {
+			s.logger.ErrorContext(ctx, "failed to publish COMPLETED event to SQS during auto-release", slog.String("id", m.ID.String()), slog.String("error", err.Error()))
 			continue
 		}
 
-		// Publish event to SQS
-		if err := s.eventPublisher.PublishMaintenanceEvent(ctx, m, "COMPLETED"); err != nil {
-			s.logger.ErrorContext(ctx, "failed to publish COMPLETED event to SQS during auto-release", slog.String("id", m.ID.String()), slog.String("error", err.Error()))
-			// Continue to next so one SQS failure doesn't block the rest
+		// Save status to DB
+		if err := s.repo.UpdateStatus(ctx, m); err != nil {
+			s.logger.WarnContext(ctx, "failed to update maintenance status in db", slog.String("id", m.ID.String()), slog.String("error", err.Error()))
 			continue
 		}
 

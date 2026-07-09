@@ -127,9 +127,9 @@ func (s *PreventiveMaintenanceService) SchedulePreventive(ctx context.Context) (
 
 // Start begins the periodic preventive maintenance scheduling loop.
 // It runs in a separate goroutine and executes SchedulePreventive every
-// intervalDays days.
+// intervalMins minutes.
 //
-// SAD Reference: "Cron Handler se ejecuta cada X días"
+// SAD Reference: "Cron Handler se ejecuta cada X minutos"
 func (s *PreventiveMaintenanceService) Start(ctx context.Context) {
 	ticker := time.NewTicker(time.Duration(s.intervalMins) * time.Minute)
 

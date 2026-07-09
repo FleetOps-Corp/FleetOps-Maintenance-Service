@@ -193,3 +193,40 @@ func TestGetByID_RepositoryError(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Error(t, err)
 }
+
+// =============================================================================
+// FinalizeMaintenance tests
+// =============================================================================
+
+func TestFinalizeMaintenance_Success(t *testing.T) {
+	repo := new(mocks.MockMaintenanceRepository)
+	publisher := new(mocks.MockEventPublisher)
+	svc := service.NewQueueService(repo, publisher, newTestLogger())
+
+	id := uuid.New()
+	m := &domain.Maintenance{ID: id, Status: domain.MaintenanceStatusInProgress, VehicleID: "XYZ-123"}
+
+	repo.On("GetByID", mock.Anything, id).Return(m, nil)
+	repo.On("UpdateStatus", mock.Anything, m).Return(nil)
+	publisher.On("PublishMaintenanceEvent", mock.Anything, m, "COMPLETED").Return(nil)
+
+	err := svc.FinalizeMaintenance(context.Background(), id)
+
+	assert.NoError(t, err)
+	assert.Equal(t, domain.MaintenanceStatusCompleted, m.Status)
+	repo.AssertExpectations(t)
+	publisher.AssertExpectations(t)
+}
+
+func TestFinalizeMaintenance_NotFound(t *testing.T) {
+	repo := new(mocks.MockMaintenanceRepository)
+	publisher := new(mocks.MockEventPublisher)
+	svc := service.NewQueueService(repo, publisher, newTestLogger())
+
+	id := uuid.New()
+	repo.On("GetByID", mock.Anything, id).Return(nil, domain.ErrMaintenanceNotFound)
+
+	err := svc.FinalizeMaintenance(context.Background(), id)
+
+	assert.ErrorIs(t, err, domain.ErrMaintenanceNotFound)
+}
