@@ -84,6 +84,11 @@ func (c *HTTPVehicleClient) fallbackOrError(ctx context.Context, err error, msg 
 //
 // ACL Translation: externalVehicle → domain.Vehicle
 func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehicle, error) {
+	if c.useMockFallback {
+		c.log.InfoContext(ctx, "USE_MOCK_FALLBACK enabled: directly returning mock vehicles")
+		return c.getMockVehicles(), nil
+	}
+
 	url := fmt.Sprintf("%s/vehiculos/disponibles", c.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
