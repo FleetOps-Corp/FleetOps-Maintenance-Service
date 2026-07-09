@@ -17,16 +17,18 @@ var _ port.EventPublisher = (*SQSPublisher)(nil)
 
 // SQSPublisher implements port.EventPublisher for AWS SQS.
 type SQSPublisher struct {
-	client   *sqs.Client
-	queueURL string
-	logger   *slog.Logger
+	client          *sqs.Client
+	queueURL        string
+	logger          *slog.Logger
+	useMockFallback bool
 }
 
-func NewSQSPublisher(client *sqs.Client, queueURL string, logger *slog.Logger) *SQSPublisher {
+func NewSQSPublisher(client *sqs.Client, queueURL string, useMockFallback bool, logger *slog.Logger) *SQSPublisher {
 	return &SQSPublisher{
-		client:   client,
-		queueURL: queueURL,
-		logger:   logger,
+		client:          client,
+		queueURL:        queueURL,
+		logger:          logger,
+		useMockFallback: useMockFallback,
 	}
 }
 
@@ -65,6 +67,13 @@ func (p *SQSPublisher) PublishMaintenanceEvent(ctx context.Context, m *domain.Ma
 			slog.String("maintenanceId", event.MaintenanceID),
 			slog.String("error", err.Error()),
 		)
+		if p.useMockFallback {
+			p.logger.WarnContext(
+				ctx, "USE_MOCK_FALLBACK enabled: simulating SQS publish success",
+				slog.String("event_body", string(body)),
+			)
+			return nil
+		}
 		return fmt.Errorf("sqs send message: %w", err)
 	}
 
