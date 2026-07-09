@@ -21,7 +21,7 @@ import (
 func TestSchedulePreventive_Success_FiltersAndCreates(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
+	vehicleClient := new(mocks.MockVehicleFetcher)
 	publisher := new(mocks.MockEventPublisher)
 	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
@@ -56,7 +56,7 @@ func TestSchedulePreventive_Success_FiltersAndCreates(t *testing.T) {
 func TestSchedulePreventive_NoVehiclesQualify(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
+	vehicleClient := new(mocks.MockVehicleFetcher)
 	publisher := new(mocks.MockEventPublisher)
 	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
@@ -81,7 +81,7 @@ func TestSchedulePreventive_NoVehiclesQualify(t *testing.T) {
 func TestSchedulePreventive_VehicleClientError(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
+	vehicleClient := new(mocks.MockVehicleFetcher)
 	publisher := new(mocks.MockEventPublisher)
 	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
@@ -102,7 +102,7 @@ func TestSchedulePreventive_VehicleClientError(t *testing.T) {
 func TestSchedulePreventive_RepositoryError_ContinuesProcessing(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
+	vehicleClient := new(mocks.MockVehicleFetcher)
 	publisher := new(mocks.MockEventPublisher)
 	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(
@@ -134,7 +134,7 @@ func TestSchedulePreventive_RepositoryError_ContinuesProcessing(t *testing.T) {
 func TestSchedulePreventive_EmptyVehicleList(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
+	vehicleClient := new(mocks.MockVehicleFetcher)
 	publisher := new(mocks.MockEventPublisher)
 	kmThresholds := map[string]float64{"Automovil": 10000.0}
 	svc := service.NewPreventiveMaintenanceService(

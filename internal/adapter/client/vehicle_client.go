@@ -12,10 +12,10 @@ import (
 	"github.com/fleetops/maintenance/internal/port"
 )
 
-// Compile-time check: HTTPVehicleClient implements port.VehicleClient.
-var _ port.VehicleClient = (*HTTPVehicleClient)(nil)
+// Compile-time check: HTTPVehicleClient implements port.VehicleFetcher.
+var _ port.VehicleFetcher = (*HTTPVehicleClient)(nil)
 
-// HTTPVehicleClient is the concrete implementation of port.VehicleClient
+// HTTPVehicleClient is the concrete implementation of port.VehicleFetcher
 // that communicates with the external Vehicles microservice via REST/HTTP.
 //
 // This adapter implements the Anti-Corruption Layer (ACL), translating
@@ -105,47 +105,47 @@ func (c *HTTPVehicleClient) GetAllVehicles(ctx context.Context) ([]*domain.Vehic
 		if ev.IdVehiculo == "" {
 			continue // skip vehicles with invalid IDs
 		}
-
-		// 1. Independent parse for CreatedAt
-		var createdAt time.Time
-		if ev.CreadoEn != "" {
-			if parsed, err := parseDateSafe(ev.CreadoEn); err == nil {
-				createdAt = parsed
-			}
-		}
-
-		// 2. Mathematical calculation for daysSince (Optimized)
-		daysSince := 0
-		if ev.FechaUltimoMant != "" {
-			if parsedDate, err := parseDateSafe(ev.FechaUltimoMant); err == nil {
-				daysSince = int(time.Since(parsedDate).Hours() / 24)
-			} else {
-				c.log.WarnContext(
-					ctx, "fecha de mantenimiento invalida, asumiendo 0 dias",
-					slog.String("placa", ev.NumeroPlaca),
-					slog.String("fecha", ev.FechaUltimoMant),
-				)
-			}
-		} else if !createdAt.IsZero() {
-			// Fallback: reutilizamos el createdAt ya parseado (Cero costo de CPU extra)
-			daysSince = int(time.Since(createdAt).Hours() / 24)
-		} else {
-			c.log.WarnContext(
-				ctx, "sin fechas validas para obtener dias, asumiendo 0",
-				slog.String("placa", ev.NumeroPlaca),
-			)
-		}
-
-		vehicles = append(vehicles, &domain.Vehicle{
-			ID:                       ev.NumeroPlaca, // The rest of our system treats VehicleID as the Placa
-			LicensePlate:             ev.NumeroPlaca,
-			VehicleType:              ev.TipoVehiculo,
-			CreatedAt:                createdAt,
-			KilometersRecorded:       ev.Kilometraje,
-			DaysSinceLastMaintenance: daysSince,
-			Available:                ev.EstadoVehiculo == "DISPONIBLE" && ev.Activo, // Map ENUM + Activo
-		})
+		vehicles = append(vehicles, c.mapVehicle(ctx, ev))
 	}
 
 	return vehicles, nil
+}
+
+func (c *HTTPVehicleClient) mapVehicle(ctx context.Context, ev externalVehicle) *domain.Vehicle {
+	var createdAt time.Time
+	if ev.CreadoEn != "" {
+		if parsed, err := parseDateSafe(ev.CreadoEn); err == nil {
+			createdAt = parsed
+		}
+	}
+
+	daysSince := 0
+	if ev.FechaUltimoMant != "" {
+		if parsedDate, err := parseDateSafe(ev.FechaUltimoMant); err == nil {
+			daysSince = int(time.Since(parsedDate).Hours() / 24)
+		} else {
+			c.log.WarnContext(
+				ctx, "fecha de mantenimiento invalida, asumiendo 0 dias",
+				slog.String("placa", ev.NumeroPlaca),
+				slog.String("fecha", ev.FechaUltimoMant),
+			)
+		}
+	} else if !createdAt.IsZero() {
+		daysSince = int(time.Since(createdAt).Hours() / 24)
+	} else {
+		c.log.WarnContext(
+			ctx, "sin fechas validas para obtener dias, asumiendo 0",
+			slog.String("placa", ev.NumeroPlaca),
+		)
+	}
+
+	return &domain.Vehicle{
+		ID:                       ev.NumeroPlaca,
+		LicensePlate:             ev.NumeroPlaca,
+		VehicleType:              ev.TipoVehiculo,
+		CreatedAt:                createdAt,
+		KilometersRecorded:       ev.Kilometraje,
+		DaysSinceLastMaintenance: daysSince,
+		Available:                ev.EstadoVehiculo == "DISPONIBLE" && ev.Activo,
+	}
 }

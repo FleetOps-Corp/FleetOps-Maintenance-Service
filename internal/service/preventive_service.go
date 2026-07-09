@@ -20,7 +20,7 @@ import (
 // Pattern: Service Layer (PoEAA), Scheduled Task (Cron Handler)
 type PreventiveMaintenanceService struct {
 	repo           port.MaintenanceRepository
-	vehicleClient  port.VehicleClient
+	vehicleClient  port.VehicleFetcher
 	eventPublisher port.EventPublisher
 	kmThresholdMap map[string]float64
 	daysThreshold  int
@@ -36,7 +36,7 @@ type PreventiveMaintenanceService struct {
 // Pattern: Dependency Injection (ADR-7)
 func NewPreventiveMaintenanceService(
 	repo port.MaintenanceRepository,
-	vehicleClient port.VehicleClient,
+	vehicleClient port.VehicleFetcher,
 	eventPublisher port.EventPublisher,
 	kmThresholdMap map[string]float64,
 	daysThreshold int,

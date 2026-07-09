@@ -13,7 +13,7 @@ import (
 // [Archetype Convention Addition] — Anti-Corruption Layer (DDD best practice)
 // Pattern: Anti-Corruption Layer (DDD), Dependency Inversion Principle (SOLID)
 // SAD Reference: Process Network 2 — "GET /vehiculos" and "PUT /vehiculos"
-type VehicleClient interface {
+type VehicleFetcher interface {
 	// GetAllVehicles retrieves all vehicles from the external Vehicles microservice
 	// and translates them into domain.Vehicle value objects.
 	// SAD Reference: Process Network 2 — Step 2-3
