@@ -134,3 +134,16 @@ func (r *PostgresMaintenanceRepository) queryMultiple(ctx context.Context, query
 
 	return results, nil
 }
+
+// ListOldUncompleted retrieves records that are not in a terminal state
+// and were created more than 'minutes' ago.
+func (r *PostgresMaintenanceRepository) ListOldUncompleted(ctx context.Context, minutes int) ([]*domain.Maintenance, error) {
+	query := `
+		SELECT id, vehicle_id, incident_id, type, severity, status, created_at, updated_at, completed_at
+		FROM maintenances
+		WHERE status NOT IN ('completed', 'failed')
+		AND created_at < NOW() - ($1 || ' minutes')::INTERVAL
+		ORDER BY created_at ASC`
+
+	return r.queryMultiple(ctx, query, minutes)
+}

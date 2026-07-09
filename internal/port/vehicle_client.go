@@ -18,8 +18,4 @@ type VehicleClient interface {
 	// and translates them into domain.Vehicle value objects.
 	// SAD Reference: Process Network 2 — Step 2-3
 	GetAllVehicles(ctx context.Context) ([]*domain.Vehicle, error)
-
-	// UpdateVehicleMaintenanceStatus notifies the Vehicles microservice that a
-	// vehicle's maintenance has been completed, resetting the days counter.
-	UpdateVehicleMaintenanceStatus(ctx context.Context, vehicleID string) error
 }

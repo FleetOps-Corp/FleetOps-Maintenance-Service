@@ -22,10 +22,12 @@ import (
 	"github.com/fleetops/maintenance/internal/adapter/client"
 	"github.com/fleetops/maintenance/internal/adapter/messaging"
 	"github.com/fleetops/maintenance/internal/adapter/repository"
+	"github.com/fleetops/maintenance/internal/domain"
 	"github.com/fleetops/maintenance/internal/handler"
 	"github.com/fleetops/maintenance/internal/platform/config"
 	"github.com/fleetops/maintenance/internal/platform/database"
 	"github.com/fleetops/maintenance/internal/platform/logger"
+	"github.com/fleetops/maintenance/internal/port"
 	"github.com/fleetops/maintenance/internal/service"
 )
 
@@ -64,20 +66,40 @@ func main() {
 
 	// Data Access Layer: Adapters (implement Port interfaces)
 	maintenanceRepo := repository.NewPostgresMaintenanceRepository(pool)
-	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs)
+	vehicleClient := client.NewHTTPVehicleClient(cfg.VehiclesServiceURL, cfg.VehiclesAPIToken, cfg.HTTPClientTimeoutSecs, log)
+
+	// Messaging: Event Publisher
+	var eventPublisher port.EventPublisher
+	var sqsClient *sqs.Client
+	if cfg.SQSQueueURL != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegion))
+		if err != nil {
+			log.Error("failed to load AWS config for SQS", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		sqsClient = sqs.NewFromConfig(awsCfg)
+		eventPublisher = messaging.NewSQSPublisher(sqsClient, cfg.SQSQueueURL, log)
+	} else {
+		log.Warn("SQS_QUEUE_URL is not set, using NOOP Event Publisher")
+		eventPublisher = &noopPublisher{log: log}
+	}
 
 	// Business Logic Layer: Services (depend on Port interfaces)
-	correctiveSvc := service.NewCorrectiveMaintenanceService(maintenanceRepo, log)
+	correctiveSvc := service.NewCorrectiveMaintenanceService(maintenanceRepo, eventPublisher, log)
 	preventiveSvc := service.NewPreventiveMaintenanceService(
-		maintenanceRepo, vehicleClient,
-		cfg.PreventiveKmThreshold, cfg.PreventiveDaysThreshold,
-		cfg.CronIntervalDays, log,
+		maintenanceRepo, vehicleClient, eventPublisher,
+		cfg.PreventiveKmThresholds, cfg.PreventiveDaysThreshold,
+		cfg.CronIntervalMinutes, log,
 	)
-	queueSvc := service.NewQueueService(maintenanceRepo, log)
+	queueSvc := service.NewQueueService(maintenanceRepo, eventPublisher, log)
 	workerPool := service.NewWorkerPool(
-		maintenanceRepo, vehicleClient,
+		maintenanceRepo,
 		cfg.MaxWorkers, cfg.WorkerPollIntervalSecs, log,
 	)
+
+	// Release Worker
+	releaseSvc := service.NewReleaseService(maintenanceRepo, eventPublisher, log, cfg.ReleaseMinutesThreshold)
+	releaseWorker := handler.NewReleaseWorker(releaseSvc, log, cfg.ReleasePollIntervalSecs)
 
 	// Presentation Layer: Handlers (depend on Services)
 	maintenanceHandler := handler.NewMaintenanceHandler(correctiveSvc, queueSvc, log)
@@ -98,21 +120,17 @@ func main() {
 	workerPool.Start(ctx)
 	defer workerPool.Stop()
 
+	// Start Release Worker (Automated Lifecycle)
+	releaseWorker.Start(ctx)
+	defer releaseWorker.Stop()
+
 	// =========================================================================
 	// Messaging: SQS Consumer
 	// =========================================================================
-	if cfg.SQSQueueURL != "" {
-		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWSRegion))
-		if err != nil {
-			log.Error("failed to load AWS config for SQS", slog.String("error", err.Error()))
-			os.Exit(1)
-		}
-		sqsClient := sqs.NewFromConfig(awsCfg)
+	if sqsClient != nil {
 		sqsConsumer := messaging.NewSQSConsumer(sqsClient, cfg.SQSQueueURL, correctiveSvc, log)
 		sqsConsumer.Start(ctx)
 		defer sqsConsumer.Stop()
-	} else {
-		log.Warn("SQS_QUEUE_URL is not set, SQS consumer will NOT start")
 	}
 
 	// =========================================================================
@@ -151,4 +169,14 @@ func main() {
 	}
 
 	log.Info("FleetOps Maintenance Microservice stopped gracefully")
+}
+
+// noopPublisher is a fallback publisher if SQS is not configured
+type noopPublisher struct {
+	log *slog.Logger
+}
+
+func (n *noopPublisher) PublishMaintenanceEvent(ctx context.Context, m *domain.Maintenance, status string) error {
+	n.log.InfoContext(ctx, "NOOP publish event", slog.String("id", m.ID.String()), slog.String("status", status))
+	return nil
 }

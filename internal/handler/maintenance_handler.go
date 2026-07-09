@@ -72,6 +72,28 @@ func (h *MaintenanceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.respondJSON(w, http.StatusOK, dto.FromDomain(m))
 }
 
+// Finalize handles PATCH /api/v1/mantenimientos/{id}/finalizar
+// Marks the maintenance as completed and publishes to SQS.
+func (h *MaintenanceHandler) Finalize(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, "invalid_id", "ID must be a valid UUID")
+		return
+	}
+
+	if err := h.queueSvc.FinalizeMaintenance(r.Context(), id); err != nil {
+		if errors.Is(err, domain.ErrMaintenanceNotFound) {
+			h.respondError(w, http.StatusNotFound, "not_found", "Maintenance not found")
+			return
+		}
+		h.respondError(w, http.StatusInternalServerError, "finalize_failed", "Failed to finalize maintenance")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GetQueueSummary handles GET /api/v1/mantenimientos/cola
 // Returns the maintenance queue summary: queued + in-progress items.
 //

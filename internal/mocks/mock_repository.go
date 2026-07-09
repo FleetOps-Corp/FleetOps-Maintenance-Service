@@ -46,3 +46,11 @@ func (m *MockMaintenanceRepository) ListByStatus(ctx context.Context, status dom
 func (m *MockMaintenanceRepository) UpdateStatus(ctx context.Context, maintenance *domain.Maintenance) error {
 	return m.Called(ctx, maintenance).Error(0)
 }
+
+func (m *MockMaintenanceRepository) ListOldUncompleted(ctx context.Context, thresholdMinutes int) ([]*domain.Maintenance, error) {
+	args := m.Called(ctx, thresholdMinutes)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Maintenance), args.Error(1)
+}

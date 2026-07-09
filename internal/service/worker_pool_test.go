@@ -20,8 +20,7 @@ import (
 func TestWorkerPool_StartAndStop(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
-	wp := service.NewWorkerPool(repo, vehicleClient, 3, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 1, newTestLogger())
 
 	// Act — start and immediately stop, should not panic
 	ctx, cancel := context.WithCancel(context.Background())
@@ -38,8 +37,7 @@ func TestWorkerPool_StartAndStop(t *testing.T) {
 func TestWorkerPool_StopIsIdempotent(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
-	wp := service.NewWorkerPool(repo, vehicleClient, 3, 60, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 60, newTestLogger())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -54,7 +52,6 @@ func TestWorkerPool_StopIsIdempotent(t *testing.T) {
 func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
 
 	vehicleID := "ABC-123"
 	m1, _ := domain.NewCorrectiveMaintenance(vehicleID, "INC-123", 5)
@@ -70,11 +67,8 @@ func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
 	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil)
 
-	vehicleClient.On("UpdateVehicleMaintenanceStatus", mock.Anything, vehicleID).
-		Return(nil)
-
 	// Act — use short poll interval to trigger quickly
-	wp := service.NewWorkerPool(repo, vehicleClient, 2, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 2, 1, newTestLogger())
 	ctx, cancel := context.WithCancel(context.Background())
 	wp.Start(ctx)
 
@@ -91,7 +85,6 @@ func TestWorkerPool_ProcessesQueuedItems(t *testing.T) {
 func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 	// Arrange
 	repo := new(mocks.MockMaintenanceRepository)
-	vehicleClient := new(mocks.MockVehicleClient)
 	// Create more items than maxWorkers
 	var queued []*domain.Maintenance
 	for i := 0; i < 10; i++ {
@@ -105,11 +98,8 @@ func TestWorkerPool_RespectsMaxWorkers(t *testing.T) {
 		Return([]*domain.Maintenance{}, nil)
 	repo.On("UpdateStatus", mock.Anything, mock.AnythingOfType("*domain.Maintenance")).
 		Return(nil)
-	vehicleClient.On("UpdateVehicleMaintenanceStatus", mock.Anything, mock.Anything).
-		Return(nil)
-
 	// Act — maxWorkers = 3, but 10 items; all should still be processed
-	wp := service.NewWorkerPool(repo, vehicleClient, 3, 1, newTestLogger())
+	wp := service.NewWorkerPool(repo, 3, 1, newTestLogger())
 	ctx, cancel := context.WithCancel(context.Background())
 	wp.Start(ctx)
 

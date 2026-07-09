@@ -16,8 +16,9 @@ import (
 // SAD Reference: Process Network 1 — "Registro de Mantenimiento Correctivo"
 // Pattern: Service Layer (PoEAA), Dependency Injection
 type CorrectiveMaintenanceService struct {
-	repo   port.MaintenanceRepository
-	logger *slog.Logger
+	repo           port.MaintenanceRepository
+	eventPublisher port.EventPublisher
+	logger         *slog.Logger
 }
 
 // NewCorrectiveMaintenanceService constructs a CorrectiveMaintenanceService
@@ -26,11 +27,13 @@ type CorrectiveMaintenanceService struct {
 // Pattern: Dependency Injection (ADR-7)
 func NewCorrectiveMaintenanceService(
 	repo port.MaintenanceRepository,
+	eventPublisher port.EventPublisher,
 	logger *slog.Logger,
 ) *CorrectiveMaintenanceService {
 	return &CorrectiveMaintenanceService{
-		repo:   repo,
-		logger: logger,
+		repo:           repo,
+		eventPublisher: eventPublisher,
+		logger:         logger,
 	}
 }
 
@@ -68,8 +71,12 @@ func (s *CorrectiveMaintenanceService) CreateCorrective(
 		metrics.Default().MaintenanceErrorsTotal.WithLabelValues("persist_corrective").Inc()
 		return nil, fmt.Errorf("persisting corrective maintenance: %w", err)
 	}
-
 	metrics.Default().MaintenanceCreatedTotal.WithLabelValues("corrective").Inc()
+
+	// Emit CREATED event to SQS
+	if err := s.eventPublisher.PublishMaintenanceEvent(ctx, maintenance, "CREATED"); err != nil {
+		s.logger.WarnContext(ctx, "failed to publish CREATED event", slog.String("error", err.Error()))
+	}
 
 	s.logger.InfoContext(
 		ctx, "corrective maintenance created and queued",

@@ -16,17 +16,19 @@ import (
 // SAD Reference: Process Network 3 — "Consulta de Cola de Mantenimientos"
 // Pattern: Service Layer (PoEAA)
 type QueueService struct {
-	repo   port.MaintenanceRepository
-	logger *slog.Logger
+	repo           port.MaintenanceRepository
+	eventPublisher port.EventPublisher
+	logger         *slog.Logger
 }
 
 // NewQueueService constructs a QueueService with its dependencies injected.
 //
 // Pattern: Dependency Injection (ADR-7)
-func NewQueueService(repo port.MaintenanceRepository, logger *slog.Logger) *QueueService {
+func NewQueueService(repo port.MaintenanceRepository, eventPublisher port.EventPublisher, logger *slog.Logger) *QueueService {
 	return &QueueService{
-		repo:   repo,
-		logger: logger,
+		repo:           repo,
+		eventPublisher: eventPublisher,
+		logger:         logger,
 	}
 }
 
@@ -85,4 +87,33 @@ func (s *QueueService) GetByID(ctx context.Context, id uuid.UUID) (*domain.Maint
 		return nil, fmt.Errorf("getting maintenance %s: %w", id, err)
 	}
 	return m, nil
+}
+
+// FinalizeMaintenance marks a maintenance as completed in the database
+// and publishes a COMPLETED event to SQS for the Vehicles microservice.
+func (s *QueueService) FinalizeMaintenance(ctx context.Context, id uuid.UUID) error {
+	m, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to fetch maintenance for finalization", slog.String("error", err.Error()))
+		return fmt.Errorf("getting maintenance: %w", err)
+	}
+
+	if err := m.MarkCompleted(); err != nil {
+		s.logger.ErrorContext(ctx, "failed to mark maintenance completed", slog.String("error", err.Error()))
+		return fmt.Errorf("marking completed: %w", err)
+	}
+
+	if err := s.repo.UpdateStatus(ctx, m); err != nil {
+		s.logger.ErrorContext(ctx, "failed to update maintenance status in db", slog.String("error", err.Error()))
+		return fmt.Errorf("updating status in db: %w", err)
+	}
+
+	if err := s.eventPublisher.PublishMaintenanceEvent(ctx, m, "COMPLETED"); err != nil {
+		s.logger.ErrorContext(ctx, "failed to publish COMPLETED event to SQS", slog.String("error", err.Error()))
+		// Retornamos el error aunque la bd se haya actualizado
+		return fmt.Errorf("publishing event: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "maintenance finalized and event published", slog.String("maintenance_id", m.ID.String()))
+	return nil
 }
