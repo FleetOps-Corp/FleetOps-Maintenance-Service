@@ -1,286 +1,373 @@
 {
-  "title": "FleetOps Maintenance Service - Go Runtime",
-  "uid": "fleetops-go-runtime",
-  "schemaVersion": 38,
-  "version": 1,
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
   "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 1688818200000,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(up{job=\"fleetops-maintenance\"})",
+          "legendFormat": "Service Up",
+          "refId": "A"
+        }
+      ],
+      "title": "Service Availability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(up{job=\"fleetops-maintenance\"})",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Status",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m])) by (path)",
+          "legendFormat": "{{path}}",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Requests per Second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m]))",
+          "legendFormat": "5xx Errors",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP 5xx Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(maintenance_created_total[5m])) by (type)",
+          "legendFormat": "{{type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Maintenance Created",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(maintenance_errors_total[5m])) by (operation)",
+          "legendFormat": "{{operation}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Maintenance Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(maintenance_queue_processed_total[5m]))",
+          "legendFormat": "Queue Processed",
+          "refId": "A"
+        }
+      ],
+      "title": "Queue Processed",
+      "type": "timeseries"
+    }
+  ],
   "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "fleetops",
+    "maintenance",
+    "prometheus"
+  ],
+  "templating": {
+    "list": []
+  },
   "time": {
     "from": "now-1h",
     "to": "now"
   },
+  "timepicker": {},
   "timezone": "browser",
-  "tags": [
-    "go",
-    "prometheus",
-    "fleetops"
-  ],
-  "panels": [
-    {
-      "id": 1,
-      "title": "Service Availability",
-      "type": "stat",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "expr": "up{job=\"fleetops-maintenance\"}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "title": "CPU Usage",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 6,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "expr": "rate(process_cpu_seconds_total[5m])",
-          "legendFormat": "CPU",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "Resident Memory",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 12,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "expr": "process_resident_memory_bytes",
-          "legendFormat": "RAM",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "title": "Goroutines",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 18,
-        "y": 0,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "expr": "go_goroutines",
-          "legendFormat": "goroutines",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "title": "Heap Usage",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "go_memstats_heap_alloc_bytes",
-          "legendFormat": "Allocated",
-          "refId": "A"
-        },
-        {
-          "expr": "go_memstats_heap_inuse_bytes",
-          "legendFormat": "In Use",
-          "refId": "B"
-        },
-        {
-          "expr": "go_memstats_heap_idle_bytes",
-          "legendFormat": "Idle",
-          "refId": "C"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "title": "GC Pause Duration",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 8,
-        "y": 4,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "rate(go_gc_duration_seconds_sum[5m]) / rate(go_gc_duration_seconds_count[5m])",
-          "legendFormat": "Average GC pause",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "title": "Heap Objects",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 16,
-        "y": 4,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "go_memstats_heap_objects",
-          "legendFormat": "Objects",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "title": "HTTP Requests/sec",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 9,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "sum(rate(http_requests_total[5m])) by (method)",
-          "legendFormat": "{{method}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "title": "HTTP Status Codes",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 8,
-        "y": 9,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "sum(rate(http_requests_total[5m])) by (status_code)",
-          "legendFormat": "{{status_code}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 10,
-      "title": "HTTP Latency p95",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 16,
-        "y": 9,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p95",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 11,
-      "title": "File Descriptors",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 0,
-        "y": 14,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "process_open_fds",
-          "legendFormat": "Open",
-          "refId": "A"
-        },
-        {
-          "expr": "process_max_fds",
-          "legendFormat": "Max",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "title": "Network Traffic",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 8,
-        "y": 14,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "rate(process_network_receive_bytes_total[5m])",
-          "legendFormat": "RX",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(process_network_transmit_bytes_total[5m])",
-          "legendFormat": "TX",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 13,
-      "title": "Prometheus Scrapes",
-      "type": "timeseries",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "x": 16,
-        "y": 14,
-        "w": 8,
-        "h": 5
-      },
-      "targets": [
-        {
-          "expr": "rate(promhttp_metric_handler_requests_total[5m])",
-          "legendFormat": "{{code}}",
-          "refId": "A"
-        }
-      ]
-    }
-  ]
+  "title": "FleetOps Maintenance Service",
+  "uid": "fleetops-maintenance-service"
 }
